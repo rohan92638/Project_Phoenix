@@ -1,0 +1,617 @@
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+
+// ─── Seed Data ────────────────────────────────────────────────────────────────
+const SEED_EXPENSES = [
+    { id: 1, date: '2024-10-24', category: 'Food & Dining', description: 'Whole Foods Market', amount: 124.50, type: 'Card' },
+    { id: 2, date: '2024-10-23', category: 'Rent', description: 'Skyline Apartments', amount: 2100.00, type: 'UPI' },
+    { id: 3, date: '2024-10-22', category: 'Entertainment', description: 'Cinema Ticket', amount: 15.00, type: 'Cash' },
+    { id: 4, date: '2024-10-21', category: 'Transportation', description: 'Metro Card Top-up', amount: 40.00, type: 'UPI' },
+    { id: 5, date: '2024-10-20', category: 'Shopping', description: 'Amazon Delivery', amount: 89.99, type: 'Card' },
+];
+
+const CATEGORY_COLORS = {
+    'Food & Dining': { bg: 'bg-primary/10', text: 'text-primary' },
+    'Rent': { bg: 'bg-secondary/10', text: 'text-secondary-fixed' },
+    'Entertainment': { bg: 'bg-tertiary/10', text: 'text-tertiary' },
+    'Transportation': { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+    'Shopping': { bg: 'bg-purple-500/10', text: 'text-purple-300' },
+    'Utilities': { bg: 'bg-blue-500/10', text: 'text-blue-300' },
+    'Other': { bg: 'bg-outline/20', text: 'text-on-surface-variant' },
+};
+
+const TYPE_ICON = { Card: 'credit_card', UPI: 'account_balance', Cash: 'payments' };
+
+const WEEKLY_BARS = [
+    { day: 'Mon', h: 40, amt: '₹1.2k' },
+    { day: 'Tue', h: 65, amt: '₹2.1k' },
+    { day: 'Wed', h: 50, amt: '₹1.6k' },
+    { day: 'Thu', h: 85, amt: '₹3.4k' },
+    { day: 'Fri', h: 35, amt: '₹1.0k' },
+    { day: 'Sat', h: 75, amt: '₹2.8k' },
+    { day: 'Sun', h: 55, amt: '₹1.8k' },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const fmtDate = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+const fmtAmt = (n) => `$${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+
+// ─── Component ────────────────────────────────────────────────────────────────
+const FinanceTracker = () => {
+        const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [expenses, setExpenses] = useState(SEED_EXPENSES);
+
+    // form state
+    const [formAmount, setFormAmount] = useState('');
+    const [formCategory, setFormCategory] = useState('Food & Dining');
+    const [formDesc, setFormDesc] = useState('');
+    const [formType, setFormType] = useState('Card');
+    const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+
+    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+    const totalIncome = 8500;
+    const savings = totalIncome - totalExpenses;
+    const savingsRatio = ((savings / totalIncome) * 100).toFixed(1);
+
+    const handleAddExpense = () => {
+        if (!formAmount || !formDesc.trim()) return;
+        const entry = {
+            id: Date.now(),
+            date: formDate,
+            category: formCategory,
+            description: formDesc.trim(),
+            amount: parseFloat(formAmount),
+            type: formType,
+        };
+        setExpenses([entry, ...expenses]);
+        setFormAmount(''); setFormDesc(''); setFormDate(new Date().toISOString().split('T')[0]);
+    };
+
+    const handleDelete = (id) => setExpenses(expenses.filter(e => e.id !== id));
+
+    const catColor = (cat) => CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'];
+
+    return (
+        <div className="bg-[#0B0014] text-on-surface font-body min-h-screen overflow-x-hidden selection:bg-primary-container selection:text-white">
+
+            {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
+            <header className="fixed top-0 w-full z-50 bg-[#1d0c26]/60 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 h-20 shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
+                <div className="flex items-center gap-4 md:gap-6">
+                    <span
+                        className="material-symbols-outlined text-[#ffb59e]/70 hover:text-[#fff9ef] transition-colors cursor-pointer"
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    >menu</span>
+                    <Link to="/" className="text-lg md:text-xl font-bold uppercase tracking-widest text-[#ffb59e] font-headline">
+                        PROJECT PHOENIX
+                    </Link>
+                    <div className="hidden md:flex h-6 w-px bg-outline-variant/30" />
+                    <span className="hidden md:block text-[#fff9ef] font-headline text-sm tracking-widest opacity-80">Phoenix v1.0</span>
+                </div>
+                <div className="flex items-center gap-4 md:gap-8">
+                    <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-container-highest/40">
+                        <span className="material-symbols-outlined text-secondary text-sm">workspace_premium</span>
+                        <span className="text-[#fff9ef] font-headline font-bold text-sm tracking-tighter">Discipline Score: 850</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <span className="material-symbols-outlined text-[#ffb59e]/70 hover:text-[#fff9ef] transition-colors cursor-pointer">notifications</span>
+                        <div className="flex items-center gap-3">
+                            <span className="hidden sm:block font-medium text-on-surface text-sm">Alex Mercer</span>
+                            <img
+                                alt="User avatar"
+                                className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-primary/20 object-cover"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJX57hND0c23Vl9y9cQ-b8y7jvLmQ3EuvRdMxc0MlHAROaZlmIQKhsKb6qA0PkXrL7hzV4B7B-qbMSFe7fvO7Zbtw-ZbFzfqpvYHrp_qVB1et2M9otwJ_b1teBRyQnc76VmkPo061BEXfioiJkV9mFOPsPI5WZ14PFGgxB3NiAE0tq3CrjCBPTBvn8FSfJPC10cyOj1H92-_nCk-EhmB4xI1F65neVrMNF-VaF1OZuZyEAgepJdftLUAeZ4TtS4mjBOGNCrC1r"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#ffb59e]/20 to-transparent" />
+            </header>
+
+            {/* ── MOBILE OVERLAY ──────────────────────────────────────────────── */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
+            {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
+            <aside className={`fixed left-0 h-full w-72 z-40 bg-[#0B0014]/95 backdrop-blur-2xl border-r border-[#ffb59e]/10 shadow-[10px_0_30px_rgba(0,0,0,0.5)] flex flex-col pt-24 pb-8 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="px-6 mb-8 flex justify-between items-center">
+                    <div className="flex items-center gap-3 p-4 bg-surface-container-low rounded-xl border border-outline-variant/10">
+                        <div className="w-2 h-10 bg-primary rounded-full" />
+                        <div>
+                            <p className="text-[#f6d9fd] font-bold text-sm">Alex Mercer</p>
+                            <p className="text-primary-container text-[10px] font-bold uppercase tracking-wider">Level 12 Initiated</p>
+                        </div>
+                    </div>
+                    <span
+                        className="material-symbols-outlined text-slate-400 cursor-pointer md:hidden ml-4"
+                        onClick={() => setIsSidebarOpen(false)}
+                    >close</span>
+                </div>
+
+                <nav className="flex flex-col flex-1 overflow-y-auto w-full no-scrollbar">
+                    <div className="mb-4 px-6 text-[10px] uppercase tracking-widest text-on-surface-variant/50 font-bold">Main Console</div>
+
+                    {[
+                        { to: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
+                        { to: '/daily-tracker', icon: 'calendar_today', label: 'Daily Tracker' },
+                        { to: '/study-tracker', icon: 'menu_book', label: 'Study Tracker' },
+                    ].map(({ to, icon, label }) => (
+                        <Link key={to} className="flex items-center gap-4 text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium" to={to}>
+                            <span className="material-symbols-outlined">{icon}</span> {label}
+                        </Link>
+                    ))}
+
+                    {/* Active: Finance Tracker */}
+                    <Link className="flex items-center gap-4 text-[#fff9ef] bg-gradient-to-r from-[#ff571a]/20 to-transparent border-r-4 border-[#ff571a] py-3 px-6 transition-all duration-500 font-body text-sm font-medium" to="/finance-tracker">
+                        <span className="material-symbols-outlined">payments</span> Finance Tracker
+                    </Link>
+
+                    {[
+                        { icon: 'edit_note', label: 'Journal', to: '/journal' },
+                        { icon: 'dangerous', label: 'Failure Tracker', to: '/failure-tracker' },
+                        { icon: 'gavel', label: 'Rules & Discipline', to: '/rules-discipline' },
+                        { icon: 'analytics', label: 'Analysis', to: '/analysis' },
+                    ].map(({ icon, label, to }) => (
+                        <Link key={label} className="flex items-center gap-4 text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium" to={to}>
+                            <span className="material-symbols-outlined">{icon}</span> {label}
+                        </Link>
+                    ))}
+
+                    <div className="mt-auto pt-8">
+                        <div className="flex flex-col w-full">
+                        <button 
+                            className="flex items-center justify-between w-full text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium" 
+                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                        >
+                            <div className="flex items-center gap-4">
+                                <span className="material-symbols-outlined">settings</span> Settings
+                            </div>
+                            <span className="material-symbols-outlined text-sm">{isSettingsOpen ? 'expand_less' : 'expand_more'}</span>
+                        </button>
+                        {isSettingsOpen && (
+                            <div className="flex flex-col bg-[#1d0c26]/50 py-2 pl-14 pr-6 space-y-2 border-l-2 border-[#ffb59e]/20 ml-6 mb-2">
+                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Update Profile</Link>
+                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Change Version</Link>
+                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Target</Link>
+                            </div>
+                        )}
+                    </div>
+                        <Link className="flex items-center gap-4 text-error/70 py-3 px-6 hover:bg-error/10 hover:text-error transition-all duration-500 font-body text-sm font-medium mt-2" to="/login">
+                            <span className="material-symbols-outlined">logout</span> System Logout
+                        </Link>
+                    </div>
+                </nav>
+            </aside>
+
+            {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
+            <main className={`pt-28 pb-20 md:pb-12 px-4 md:px-8 lg:px-12 min-h-screen relative z-10 transition-all duration-300 ${isSidebarOpen ? 'md:ml-72' : 'ml-0'}`}>
+                <div className="w-full max-w-[1600px] mx-auto">
+
+                    {/* ── TITLE ─────────────────────────────────────────────── */}
+                    <section className="mb-12 relative">
+                        <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary-container/10 rounded-full blur-[120px] pointer-events-none" />
+                        <h1 className="font-headline text-5xl md:text-6xl font-bold tracking-tighter text-[#fff9ef] mb-2 relative z-10">
+                            Finance{' '}
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-container drop-shadow-[0_0_15px_rgba(255,181,158,0.4)]">
+                                Tracker
+                            </span>
+                        </h1>
+                        <div className="h-0.5 bg-gradient-to-r from-[#ff571a] to-transparent w-48 mb-4" />
+                        <p className="text-on-surface-variant text-lg font-light tracking-wide max-w-xl">
+                            Manage your expenses, savings, and financial discipline through the lens of the celestial rebirth.
+                        </p>
+                    </section>
+
+                    {/* ── INSIGHT CARDS ─────────────────────────────────────── */}
+                    <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                        {/* Green */}
+                        <div className="glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 border-emerald-500 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl">
+                            <div className="p-3 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0">
+                                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold">Insight</span>
+                                <h4 className="text-emerald-400 font-bold mb-1 mt-1">Good Saving Discipline</h4>
+                                <p className="text-on-surface-variant text-sm">Maintained 35% savings rate over the last 30 days. Level up imminent.</p>
+                            </div>
+                        </div>
+                        {/* Yellow */}
+                        <div className="glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 border-secondary-container shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl">
+                            <div className="p-3 rounded-full bg-secondary-container/20 text-secondary-fixed shrink-0">
+                                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] uppercase tracking-widest text-secondary-fixed font-bold">Alert</span>
+                                <h4 className="text-secondary-fixed font-bold mb-1 mt-1">Budget Limit Approaching</h4>
+                                <p className="text-on-surface-variant text-sm">Your "Entertainment" category is at 88% of its monthly threshold.</p>
+                            </div>
+                        </div>
+                        {/* Red */}
+                        <div className="glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 border-tertiary-container shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl">
+                            <div className="p-3 rounded-full bg-tertiary-container/20 text-tertiary shrink-0">
+                                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>trending_up</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] uppercase tracking-widest text-tertiary font-bold">Caution</span>
+                                <h4 className="text-tertiary font-bold mb-1 mt-1">Spending Increased</h4>
+                                <p className="text-on-surface-variant text-sm">Weekly spending is 12% higher than your average celestial baseline.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ── MONTHLY SUMMARY CARDS ─────────────────────────────── */}
+                    <section className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                        {/* Total Expenses */}
+                        <div className="glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
+                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3">Total Expenses</p>
+                            <div className="text-3xl font-headline font-black text-primary">{fmtAmt(totalExpenses)}</div>
+                            <div className="mt-3 flex items-center gap-1 text-xs text-error font-medium">
+                                <span className="material-symbols-outlined text-sm">south_east</span>
+                                +4.2% from last month
+                            </div>
+                        </div>
+                        {/* Total Income */}
+                        <div className="glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
+                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3">Total Income</p>
+                            <div className="text-3xl font-headline font-black text-secondary-fixed">{fmtAmt(totalIncome)}</div>
+                            <div className="mt-3 flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                                <span className="material-symbols-outlined text-sm">north_east</span>
+                                +2.0% from last month
+                            </div>
+                        </div>
+                        {/* Savings */}
+                        <div className="glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
+                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3">Savings</p>
+                            <div className="text-3xl font-headline font-black text-[#f6d9fd]">{fmtAmt(savings)}</div>
+                            <div className="mt-3 flex items-center gap-1 text-xs text-primary font-medium">
+                                <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                                {savingsRatio}% Saving Ratio
+                            </div>
+                        </div>
+                        {/* Goal Progress */}
+                        <div className="glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)] flex flex-col items-center justify-center gap-2">
+                            <div className="relative w-20 h-20 flex items-center justify-center">
+                                <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                                    <circle cx="40" cy="40" r="32" fill="none" stroke="currentColor" strokeWidth="6" className="text-surface-container-highest" />
+                                    <circle cx="40" cy="40" r="32" fill="none" stroke="url(#goalGrad)" strokeWidth="6"
+                                        strokeDasharray="201" strokeDashoffset="30" strokeLinecap="round" />
+                                    <defs>
+                                        <linearGradient id="goalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stopColor="#ffb59e" />
+                                            <stop offset="100%" stopColor="#ff571a" />
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                                <span className="absolute text-lg font-black font-headline text-primary">85%</span>
+                            </div>
+                            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Goal Progress</p>
+                        </div>
+                    </section>
+
+                    {/* ── MAIN GRID ─────────────────────────────────────────── */}
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+
+                        {/* ── LEFT COLUMN (8/12) ──────────────────────────── */}
+                        <div className="xl:col-span-8 space-y-8">
+
+                            {/* ADD EXPENSE FORM */}
+                            <div className="glass-card p-6 md:p-8 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
+                                <h3 className="font-headline text-xl font-bold text-[#fff9ef] mb-6 flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-primary">add_circle</span>
+                                    Quick Transaction
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    {/* Amount */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Amount (₹)</label>
+                                        <input
+                                            type="number" min="0" placeholder="0.00"
+                                            value={formAmount}
+                                            onChange={e => setFormAmount(e.target.value)}
+                                            className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
+                                        />
+                                    </div>
+                                    {/* Category */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Category</label>
+                                        <select
+                                            value={formCategory} onChange={e => setFormCategory(e.target.value)}
+                                            className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 appearance-none cursor-pointer"
+                                        >
+                                            {Object.keys(CATEGORY_COLORS).filter(c => c !== 'Other').map(c => (
+                                                <option key={c}>{c}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    {/* Date */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Date</label>
+                                        <input
+                                            type="date" value={formDate} onChange={e => setFormDate(e.target.value)}
+                                            className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
+                                        />
+                                    </div>
+                                    {/* Description */}
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
+                                        <input
+                                            type="text" placeholder="Expense name..."
+                                            value={formDesc} onChange={e => setFormDesc(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && handleAddExpense()}
+                                            className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
+                                        />
+                                    </div>
+                                    {/* Payment Type + Button */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Payment Type</label>
+                                        <div className="flex gap-2">
+                                            {['Card', 'UPI', 'Cash'].map(t => (
+                                                <button
+                                                    key={t} type="button"
+                                                    onClick={() => setFormType(t)}
+                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${formType === t ? 'bg-primary/20 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40'}`}
+                                                >{t}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {/* Submit */}
+                                    <div className="md:col-span-3">
+                                        <button
+                                            type="button" onClick={handleAddExpense}
+                                            className="w-full py-4 rounded-xl bg-gradient-to-r from-primary to-primary-container text-background font-bold uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(255,87,26,0.3)] hover:scale-[1.01] active:scale-[0.98] transition-all"
+                                        >
+                                            Add Expense
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* EXPENSE TABLE */}
+                            <div className="glass-card rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-2xl overflow-hidden">
+                                <div className="p-6 bg-surface-container-high flex justify-between items-center border-b border-outline-variant/10">
+                                    <h3 className="font-headline text-xl font-bold text-secondary flex items-center gap-3">
+                                        <span className="material-symbols-outlined text-primary">receipt_long</span>
+                                        Recent Activity
+                                    </h3>
+                                    <span className="px-3 py-1 rounded-full bg-primary-container/20 text-primary text-[10px] font-bold uppercase tracking-widest">
+                                        Live View
+                                    </span>
+                                </div>
+
+                                {/* Desktop table */}
+                                <div className="hidden md:block overflow-x-auto no-scrollbar">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-surface-container text-on-surface-variant text-[11px] uppercase tracking-widest font-bold">
+                                                <th className="px-6 py-4">Date</th>
+                                                <th className="px-6 py-4">Category</th>
+                                                <th className="px-6 py-4">Description</th>
+                                                <th className="px-6 py-4 text-right">Amount</th>
+                                                <th className="px-6 py-4 text-center">Type</th>
+                                                <th className="px-6 py-4 text-right"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="text-sm">
+                                            {expenses.map(exp => (
+                                                <tr key={exp.id} className={`border-b border-outline-variant/5 hover:bg-surface-bright/50 transition-colors ${exp.amount > 500 ? 'border-l-2 border-tertiary/40' : ''}`}>
+                                                    <td className="px-6 py-5 text-on-surface-variant">{fmtDate(exp.date)}</td>
+                                                    <td className="px-6 py-5">
+                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${catColor(exp.category).bg} ${catColor(exp.category).text}`}>
+                                                            {exp.category}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-5 font-semibold text-white">{exp.description}</td>
+                                                    <td className={`px-6 py-5 text-right font-bold ${exp.amount > 500 ? 'text-tertiary' : 'text-on-surface'}`}>
+                                                        {fmtAmt(exp.amount)}
+                                                    </td>
+                                                    <td className="px-6 py-5 text-center">
+                                                        <span className="flex items-center justify-center gap-1.5 text-on-surface-variant text-xs">
+                                                            <span className="material-symbols-outlined text-sm">{TYPE_ICON[exp.type] || 'payments'}</span>
+                                                            {exp.type}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-5 text-right">
+                                                        <button
+                                                            onClick={() => handleDelete(exp.id)}
+                                                            className="material-symbols-outlined text-outline/30 hover:text-error transition-colors text-sm"
+                                                        >delete</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Mobile cards */}
+                                <div className="md:hidden divide-y divide-outline-variant/10">
+                                    {expenses.map(exp => (
+                                        <div key={exp.id} className="p-4 flex items-center justify-between hover:bg-surface-bright/30 transition-colors">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${catColor(exp.category).bg} ${catColor(exp.category).text}`}>
+                                                        {exp.category}
+                                                    </span>
+                                                    <span className="text-[10px] text-on-surface-variant">{fmtDate(exp.date)}</span>
+                                                </div>
+                                                <p className="text-sm font-semibold text-white">{exp.description}</p>
+                                                <span className="flex items-center gap-1 text-xs text-on-surface-variant">
+                                                    <span className="material-symbols-outlined text-xs">{TYPE_ICON[exp.type] || 'payments'}</span>
+                                                    {exp.type}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`font-bold text-lg font-headline ${exp.amount > 500 ? 'text-tertiary' : 'text-on-surface'}`}>
+                                                    {fmtAmt(exp.amount)}
+                                                </span>
+                                                <button onClick={() => handleDelete(exp.id)} className="material-symbols-outlined text-outline/30 hover:text-error transition-colors">delete</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* CELESTIAL ASSETS — full-width in left column */}
+                            <div className="glass-card p-6 md:p-8 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)] relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-48 h-48 bg-secondary/5 blur-3xl rounded-full pointer-events-none" />
+                                <div className="flex items-center justify-between mb-8">
+                                    <h4 className="font-headline text-xl font-bold text-secondary">Celestial Assets</h4>
+                                    <div className="bg-secondary/10 px-3 py-1 rounded-full flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-secondary text-xs">keyboard_double_arrow_up</span>
+                                        <span className="text-[10px] text-secondary font-black">PREMIUM</span>
+                                    </div>
+                                </div>
+
+                                {/* 3-column asset grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                                    {[
+                                        { icon: 'show_chart', iconColor: 'text-secondary', bg: 'bg-secondary/10', label: 'Mutual Funds', sub: '3 Active Funds', val: '$12,450', pct: '+12.4%', up: true },
+                                        { icon: 'candlestick_chart', iconColor: 'text-primary', bg: 'bg-primary/10', label: 'Stock Equity', sub: '12 Companies', val: '$8,120', pct: '-2.1%', up: false },
+                                        { icon: 'currency_bitcoin', iconColor: 'text-on-surface', bg: 'bg-surface-container-highest', label: 'Trading', sub: 'Crypto / Forex', val: '$4,500', pct: '+5.7%', up: true },
+                                    ].map(({ icon, iconColor, bg, label, sub, val, pct, up }) => (
+                                        <div key={label} className="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-low/60 border border-outline-variant/10 hover:bg-surface-container hover:border-primary/20 transition-all group">
+                                            <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
+                                                <span className={`material-symbols-outlined ${iconColor}`}>{icon}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h5 className="text-sm font-bold text-on-surface">{label}</h5>
+                                                <p className="text-[10px] text-on-surface-variant mb-2">{sub}</p>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-base font-black font-headline text-on-surface">{val}</span>
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${up ? 'text-emerald-400 bg-emerald-500/10' : 'text-error bg-error/10'}`}>{pct}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Total portfolio summary */}
+                                <div className="pt-6 border-t border-outline-variant/10">
+                                    <div className="flex items-end justify-between mb-4">
+                                        <div>
+                                            <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold mb-1">Total Portfolio</p>
+                                            <div className="text-3xl font-headline font-black text-secondary">$25,070.00</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold mb-1">Overall Return</p>
+                                            <div className="text-xl font-headline font-black text-emerald-400">+8.4%</div>
+                                        </div>
+                                    </div>
+                                    <div className="w-full h-3 bg-surface-container-highest rounded-full overflow-hidden flex gap-0.5">
+                                        <div className="h-full bg-secondary-container rounded-l-full" style={{ width: '50%' }} />
+                                        <div className="h-full bg-primary" style={{ width: '30%' }} />
+                                        <div className="h-full bg-on-surface-variant rounded-r-full" style={{ width: '20%' }} />
+                                    </div>
+                                    <div className="flex justify-between mt-2 text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">
+                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-secondary-container inline-block" />Mutual 50%</span>
+                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary inline-block" />Stocks 30%</span>
+                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-on-surface-variant inline-block" />Crypto 20%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── RIGHT COLUMN (4/12) ─────────────────────────── */}
+                        <div className="xl:col-span-4 space-y-8">
+
+                            {/* SPENDING TREND CHART */}
+                            <div className="glass-card p-6 md:p-8 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
+                                <h4 className="font-headline text-lg font-bold text-secondary mb-6 flex items-center justify-between">
+                                    Spending Trend
+                                    <span className="material-symbols-outlined text-primary">bar_chart</span>
+                                </h4>
+                                <div className="h-40 flex items-end justify-between gap-2 mt-4 mb-2">
+                                    {WEEKLY_BARS.map((bar, i) => (
+                                        <div key={bar.day} className={`w-full rounded-t-sm relative group cursor-pointer transition-all ${i === 5 ? 'bg-primary shadow-[0_0_15px_rgba(255,181,158,0.4)]' : 'bg-primary-container/10 hover:bg-primary/50'}`} style={{ height: `${bar.h}%` }}>
+                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-highest px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                {bar.amt}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="flex justify-between border-t border-outline-variant/10 pt-3 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">
+                                    {WEEKLY_BARS.map((b, i) => (
+                                        <span key={b.day} className={i === 5 ? 'text-primary border-b border-primary pb-1 -mb-1' : ''}>{b.day}</span>
+                                    ))}
+                                </div>
+                                <div className="mt-6 bg-surface-container-low p-4 rounded-xl border border-white/5">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs text-on-surface-variant font-medium">Daily Average</span>
+                                        <span className="text-sm font-bold text-secondary">₹2.0k</span>
+                                    </div>
+                                    <div className="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-primary to-primary-container w-[60%] rounded-full" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* CATEGORY BREAKDOWN */}
+                            <div className="glass-card p-6 md:p-8 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
+                                <h4 className="font-headline text-lg font-bold text-secondary mb-6 flex items-center justify-between">
+                                    Category Spread
+                                    <span className="material-symbols-outlined text-primary">donut_large</span>
+                                </h4>
+                                {/* Pseudo donut */}
+                                <div className="relative flex items-center justify-center py-6">
+                                    <div className="relative w-40 h-40 rounded-full border-[10px] border-surface-container-highest flex items-center justify-center shadow-inner">
+                                        <div className="absolute inset-0 rounded-full border-[10px] border-t-primary border-r-secondary-container border-b-tertiary border-l-emerald-500 rotate-[30deg] shadow-[0_0_20px_rgba(255,87,26,0.3)] hover:scale-[1.02] transition-transform cursor-pointer" />
+                                        <div className="text-center z-10">
+                                            <span className="block text-2xl font-black font-headline text-[#fff9ef]">{expenses.length}</span>
+                                            <span className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold">Entries</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-2 space-y-2 pt-4 border-t border-white/5">
+                                    {[
+                                        { label: 'Food & Dining', color: 'bg-primary', pct: 25 },
+                                        { label: 'Rent', color: 'bg-secondary-container', pct: 42 },
+                                        { label: 'Entertainment', color: 'bg-tertiary', pct: 18 },
+                                        { label: 'Transport', color: 'bg-emerald-500', pct: 15 },
+                                    ].map(({ label, color, pct }) => (
+                                        <div key={label} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-white/5 transition-colors">
+                                            <span className="flex items-center gap-2.5 text-on-surface-variant font-medium">
+                                                <span className={`w-2 h-2 rounded-full ${color}`} />
+                                                {label}
+                                            </span>
+                                            <span className="text-on-surface font-bold">{pct}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                {/* Decorative blobs */}
+                <div className="fixed top-[20%] left-[-10%] w-[40%] h-[40%] bg-primary-container/5 rounded-full blur-[120px] pointer-events-none -z-10" />
+                <div className="fixed bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-tertiary-container/5 rounded-full blur-[100px] pointer-events-none -z-10" />
+            </main>
+
+            {/* ── MOBILE FAB ──────────────────────────────────────────────────── */}
+            <button
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="fixed bottom-8 right-8 md:hidden w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary-container text-background flex items-center justify-center shadow-[0_0_30px_rgba(255,87,26,0.4)] z-50 active:scale-95 transition-transform"
+            >
+                <span className="material-symbols-outlined">add</span>
+            </button>
+
+            {/* ── MOBILE BOTTOM NAV ───────────────────────────────────────────── */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#1d0c26]/90 backdrop-blur-xl border-t border-outline-variant/10 flex justify-around items-center px-4 z-[70]">
+                <Link to="/dashboard" className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">dashboard</Link>
+                <Link to="/daily-tracker" className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">event_repeat</Link>
+                <Link to="/finance-tracker" className="material-symbols-outlined text-primary">payments</Link>
+                <Link to="/study-tracker" className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">menu_book</Link>
+                <Link to="#" className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">person</Link>
+            </nav>
+        </div>
+    );
+};
+
+export default FinanceTracker;
