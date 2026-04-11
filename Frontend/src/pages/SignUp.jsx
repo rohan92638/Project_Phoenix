@@ -1,9 +1,51 @@
-import React, { useState } from 'react';
+import React, { use, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { registerUser } from "../services/api";
 
 const SignUp = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [formData, setFormData] = useState({
+        first_name:"",
+        last_name:"",
+        email:"",
+        mobile:"",
+        password:"",
+        confirm_password:""
+    });
+
+    // Handle Submit
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        console.log("Button clicked");
+
+        // frontend validation
+        if (formData.password !== formData.confirm_password) {
+            alert("Password do not match");
+            return;
+        }
+
+        try {
+            const data = await registerUser(formData);
+
+            alert("Signup successful ✅");
+
+            // clear form
+            setFormData({
+                first_name: "",
+                last_name: "",
+                email: "",
+                mobile: "",
+                password: "",
+                confirm_password: ""
+            });
+
+        } catch (error) {
+            alert(error.message);
+        }
+    };
+    
 
     return (
         <div className="bg-void min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
@@ -54,21 +96,29 @@ const SignUp = () => {
                 </div> 
                 */}
 
-                    <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); }}>
+                    <form onSubmit={handleSubmit}>
                         {/* Name Row */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-2">First Name</label>
                                 <div className="relative flex items-center bg-surface-container-highest rounded-full border border-outline-variant/30 input-focus-glow transition-all">
                                     <span className="material-symbols-outlined ml-4 text-outline">person</span>
-                                    <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none" placeholder="First Name" type="text" />
+                                    <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none" placeholder="First Name"
+                                     type="text"
+                                     value={formData.first_name}
+                                     onChange={(e) => setFormData({ ...formData, first_name: e.target.value})}
+                                     />
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-2">Last Name</label>
                                 <div className="relative flex items-center bg-surface-container-highest rounded-full border border-outline-variant/30 input-focus-glow transition-all">
                                     <span className="material-symbols-outlined ml-4 text-outline">badge</span>
-                                    <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none" placeholder="Last Name" type="text" />
+                                    <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none" placeholder="Last Name"
+                                     type="text"
+                                     value={formData.last_name}
+                                     onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                                     />
                                 </div>
                             </div>
                         </div>
@@ -78,7 +128,12 @@ const SignUp = () => {
                             <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-2">Email Address</label>
                             <div className="relative flex items-center bg-surface-container-highest rounded-full border border-outline-variant/30 input-focus-glow transition-all">
                                 <span className="material-symbols-outlined ml-4 text-outline">mail</span>
-                                <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none" placeholder="aelius@phoenix.ascend" type="email" />
+                                <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none"
+                                  placeholder="aelius@phoenix.ascend"
+                                  type="email"
+                                  value={formData.email}
+                                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                  />
                             </div>
                         </div>
 
@@ -87,7 +142,16 @@ const SignUp = () => {
                             <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-2">Mobile Number</label>
                             <div className="relative flex items-center bg-surface-container-highest rounded-full border border-outline-variant/30 input-focus-glow transition-all">
                                 <span className="material-symbols-outlined ml-4 text-outline">smartphone</span>
-                                <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none" placeholder="+91 " type="tel" onInput={(e) => { e.target.value = e.target.value.replace(/[^0-9+]/g, ''); }} />
+                                <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none"
+                                 placeholder="+91 "
+                                  type="tel"
+                                  value={formData.mobile}
+                                  onChange={(e) => {
+                                      // allow only numbers and +
+                                      const value = e.target.value.replace(/[^0-9+]/g, '');
+                                      setFormData({ ...formData, mobile: value });
+                                    }}
+                                  />
                             </div>
                         </div>
 
@@ -96,7 +160,12 @@ const SignUp = () => {
                             <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-2">Password</label>
                             <div className="relative flex items-center bg-surface-container-highest rounded-full border border-outline-variant/30 input-focus-glow transition-all">
                                 <span className="material-symbols-outlined ml-4 text-outline">lock</span>
-                                <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none" placeholder="••••••••" type={showPassword ? 'text' : 'password'} />
+                                <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none"
+                                 placeholder="••••••••"
+                                  type={showPassword ? 'text' : 'password'}
+                                  value={formData.password}
+                                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                  />
                                 <button className="mr-4 text-outline hover:text-primary transition-colors focus:outline-none" type="button" onClick={() => setShowPassword(!showPassword)}>
                                     <span className="material-symbols-outlined">{showPassword ? 'visibility' : 'visibility_off'}</span>
                                 </button>
@@ -107,7 +176,12 @@ const SignUp = () => {
                             <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-2">Confirm Password</label>
                             <div className="relative flex items-center bg-surface-container-highest rounded-full border border-outline-variant/30 input-focus-glow transition-all">
                                 <span className="material-symbols-outlined ml-4 text-outline">lock_reset</span>
-                                <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none" placeholder="••••••••" type={showConfirmPassword ? 'text' : 'password'} />
+                                <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none"
+                                 placeholder="••••••••"
+                                  type={showConfirmPassword ? 'text' : 'password'}
+                                  value={formData.confirm_password}
+                                  onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
+                                  />
                                 <button className="mr-4 text-outline hover:text-primary transition-colors focus:outline-none" type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                                     <span className="material-symbols-outlined">{showConfirmPassword ? 'visibility' : 'visibility_off'}</span>
                                 </button>

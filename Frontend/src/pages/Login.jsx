@@ -1,9 +1,37 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { loginUser } from "../services/api";
 
 const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
+
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+
     const navigate = useNavigate();
+
+    //  LOGIN FUNCTION
+    const handleLogin = async (e) => {
+        e.preventDefault();
+
+        try {
+            const data = await loginUser({
+                email,
+                password
+            });
+
+            alert("Login Successful ");
+
+            // store user
+            localStorage.setItem("user", JSON.stringify(data.user));
+
+            navigate('/dashboard');
+
+        } catch (error) {
+            alert(error.message);
+        }
+    };
+
 
     return (
         <div className="bg-background text-on-background font-body min-h-screen flex flex-col selection:bg-primary-container selection:text-white">
@@ -43,7 +71,7 @@ const Login = () => {
 
                     {/* Form Card */}
                     <div className="glass-panel p-8 md:p-10 rounded-[2rem] border-t border-white/5 shadow-[0_0_50px_-12px_rgba(255,87,26,0.3)]">
-                        <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); navigate('/dashboard'); }}>
+                        <form className="space-y-6" onSubmit={handleLogin}>
                             {/* Email Field */}
                             <div className="space-y-2">
                                 <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1" htmlFor="email">Email Address</label>
@@ -51,7 +79,14 @@ const Login = () => {
                                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
                                         mail
                                     </span>
-                                    <input className="w-full bg-surface-container-highest border-none rounded-full py-4 pl-12 pr-6 text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/50 transition-all outline-none" id="email" placeholder="phoenix@celestial.com" type="email" />
+                                    <input className="w-full bg-surface-container-highest border-none rounded-full py-4 pl-12 pr-6 text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/50 transition-all outline-none"
+                                     id="email"
+                                      placeholder="phoenix@celestial.com"
+                                       type="email"
+                                       value={email}
+                                       onChange={(e) => setEmail(e.target.value)}
+                                       
+                                       />
                                 </div>
                             </div>
 
@@ -62,7 +97,13 @@ const Login = () => {
                                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
                                         lock
                                     </span>
-                                    <input className="w-full bg-surface-container-highest border-none rounded-full py-4 pl-12 pr-12 text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/50 transition-all outline-none" id="password" placeholder="••••••••" type={showPassword ? 'text' : 'password'} />
+                                    <input className="w-full bg-surface-container-highest border-none rounded-full py-4 pl-12 pr-12 text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/50 transition-all outline-none"
+                                     id="password"
+                                     placeholder="••••••••"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    />
                                     <button className="absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant hover:text-on-surface transition-colors" type="button" onClick={() => setShowPassword(!showPassword)}>
                                         <span className="material-symbols-outlined">{showPassword ? 'visibility' : 'visibility_off'}</span>
                                     </button>
