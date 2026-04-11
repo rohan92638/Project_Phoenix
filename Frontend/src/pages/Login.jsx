@@ -24,6 +24,7 @@ const Login = () => {
 
             // store user
             localStorage.setItem("user", JSON.stringify(data.user));
+            localStorage.setItem("isLoggedIn", "true");
 
             navigate('/dashboard');
 

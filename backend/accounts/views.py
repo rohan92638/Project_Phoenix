@@ -2,6 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import RegisterSerializer, LoginSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 import hashlib
 
@@ -56,6 +57,9 @@ def login_user(request):
                 {"error": "Invalid password"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+            
+        # Generate JWT Token
+        refresh = RefreshToken.for_user(user)
 
         return Response(
             {
@@ -63,7 +67,9 @@ def login_user(request):
                 "user": {
                     "email": user.email,
                     "name": user.first_name
-                }
+                },
+                "access": str(refresh.access_token),
+                "refresh": str(refresh)
             },
             status=status.HTTP_200_OK
         )
