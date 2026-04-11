@@ -1,4 +1,5 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import RegisterSerializer, LoginSerializer
@@ -8,6 +9,7 @@ import hashlib
 
 #Sign up API
 @api_view(['POST'])
+@permission_classes([AllowAny]) 
 def register_user(request):
 
     # 🔹 Check email already exists
@@ -31,6 +33,7 @@ def register_user(request):
 
 # LOGIN API
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def login_user(request):
 
     serializer = LoginSerializer(data=request.data)
