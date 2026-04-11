@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',   
     'test',           
     'accounts',
+    'daily_tracker',
 ]
 
 MIDDLEWARE = [
@@ -138,11 +139,27 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CORS_ALLOW_ALL_ORIGINS = True
+AUTH_USER_MODEL = "accounts.User"
+
+# In development allow the Vite dev-server; lock this down in production.
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 # JWT Authentication (ADD THIS BELOW)
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }

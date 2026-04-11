@@ -4,32 +4,34 @@ import { loginUser } from "../services/api";
 
 const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
-
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
 
-    //  LOGIN FUNCTION
+    // LOGIN FUNCTION
     const handleLogin = async (e) => {
         e.preventDefault();
+        setError("");
+        setLoading(true);
 
         try {
-            const data = await loginUser({
-                email,
-                password
-            });
+            const data = await loginUser({ email, password });
 
-            alert("Login Successful ");
-
-            // store user
-            localStorage.setItem("user", JSON.stringify(data.user));
-            localStorage.setItem("isLoggedIn", "true");
+            // ✅ Store JWT tokens AND user info
+            localStorage.setItem("accessToken",  data.access);
+            localStorage.setItem("refreshToken", data.refresh);
+            localStorage.setItem("user",         JSON.stringify(data.user));
+            localStorage.setItem("isLoggedIn",   "true");
 
             navigate('/dashboard');
 
-        } catch (error) {
-            alert(error.message);
+        } catch (err) {
+            setError(err.message || "Login failed. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -114,9 +116,21 @@ const Login = () => {
                                 </div>
                             </div>
 
+                            {/* Inline Error */}
+                            {error && (
+                                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+                                    <span className="material-symbols-outlined text-base">error</span>
+                                    {error}
+                                </div>
+                            )}
+
                             {/* Login Button */}
-                            <button className="w-full py-4 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary-fixed font-black uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_20px_40px_rgba(255,87,26,0.15)]" type="submit">
-                                Login
+                            <button
+                                className="w-full py-4 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary-fixed font-black uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_20px_40px_rgba(255,87,26,0.15)] disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+                                type="submit"
+                                disabled={loading}
+                            >
+                                {loading ? "Logging in…" : "Login"}
                             </button>
 
                             {/* Divider */}

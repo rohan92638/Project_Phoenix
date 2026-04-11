@@ -1,10 +1,12 @@
-import React, { use, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from "../services/api";
 
 const SignUp = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         first_name:"",
         last_name:"",
@@ -14,24 +16,25 @@ const SignUp = () => {
         confirm_password:""
     });
 
+    const navigate = useNavigate();
+
     // Handle Submit
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
 
-        console.log("Button clicked");
-
-        // frontend validation
+        // Frontend validation
         if (formData.password !== formData.confirm_password) {
-            alert("Password do not match");
+            setError("Passwords do not match");
             return;
         }
 
+        setLoading(true);
+
         try {
-            const data = await registerUser(formData);
+            await registerUser(formData);
 
-            alert("Signup successful ✅");
-
-            // clear form
+            // Clear form then redirect to login
             setFormData({
                 first_name: "",
                 last_name: "",
@@ -41,8 +44,12 @@ const SignUp = () => {
                 confirm_password: ""
             });
 
-        } catch (error) {
-            alert(error.message);
+            navigate("/login");
+
+        } catch (err) {
+            setError(err.message || "Signup failed. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
     
@@ -87,14 +94,6 @@ const SignUp = () => {
 
                 {/* Form Card */}
                 <div className="w-full glass-panel p-8 md:p-12 rounded-[2rem] flame-glow border border-outline-variant/10">
-                    {/* 
-                <div className="space-y-4 mb-8">
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-error-container/20 border border-error/20 text-error text-sm font-medium">
-                        <span className="material-symbols-outlined text-xl">error</span>
-                        Account already exists. Please login.
-                    </div>
-                </div> 
-                */}
 
                     <form onSubmit={handleSubmit}>
                         {/* Name Row */}
@@ -188,10 +187,22 @@ const SignUp = () => {
                             </div>
                         </div>
 
+                        {/* Inline Error */}
+                        {error && (
+                            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+                                <span className="material-symbols-outlined text-base">error</span>
+                                {error}
+                            </div>
+                        )}
+
                         {/* Submit */}
                         <div className="pt-4">
-                            <button className="w-full py-5 bg-gradient-to-r from-primary to-primary-container rounded-full text-on-primary font-headline font-bold text-lg uppercase tracking-widest hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,87,26,0.4)] transition-all duration-300 active:scale-95" type="submit">
-                                Sign Up
+                            <button
+                                className="w-full py-5 bg-gradient-to-r from-primary to-primary-container rounded-full text-on-primary font-headline font-bold text-lg uppercase tracking-widest hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,87,26,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+                                type="submit"
+                                disabled={loading}
+                            >
+                                {loading ? "Creating Account…" : "Sign Up"}
                             </button>
                         </div>
                     </form>

@@ -1,10 +1,11 @@
 import { Navigate } from "react-router-dom";
 
 const ProtectedRoute = ({ children }) => {
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
+    // Check for real JWT token, not just a truthy string flag
+    const accessToken = localStorage.getItem("accessToken");
 
-    if (!isLoggedIn) {
-        return <Navigate to="/login" />;
+    if (!accessToken) {
+        return <Navigate to="/login" replace />;
     }
 
     return children;
