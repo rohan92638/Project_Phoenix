@@ -16,7 +16,7 @@ class DailyTask(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
 
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default=timezone.localdate)
 
     status = models.CharField(
         max_length=10,

@@ -1,4 +1,4 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
@@ -12,6 +12,7 @@ User = get_user_model()
 
 # ── REGISTER ──────────────────────────────────────────────────────────────────
 @api_view(["POST"])
+@authentication_classes([])   # Skip JWT auth — this is a public endpoint
 @permission_classes([AllowAny])
 def register_user(request):
 
@@ -36,6 +37,7 @@ def register_user(request):
 
 # ── LOGIN ─────────────────────────────────────────────────────────────────────
 @api_view(["POST"])
+@authentication_classes([])   # Skip JWT auth — this is a public endpoint
 @permission_classes([AllowAny])
 def login_user(request):
 

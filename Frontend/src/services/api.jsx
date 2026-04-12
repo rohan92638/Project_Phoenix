@@ -41,3 +41,25 @@ export const loginUser = (data) => {
 export const registerUser = (data) => {
     return apiRequest("/auth/register/", "POST", data);
 };
+
+// ================= DAILY TRACKER APIs =================
+
+// 🔹 GET all tasks (today)
+export const getTasks = () => {
+    return apiRequest("/daily/");
+};
+
+// 🔹 CREATE task
+export const createTask = (data) => {
+    return apiRequest("/daily/", "POST", data);
+};
+
+// 🔹 UPDATE task
+export const updateTask = (id, data) => {
+    return apiRequest(`/daily/${id}/`, "PATCH", data);
+};
+
+// 🔹 DELETE task
+export const deleteTask = (id) => {
+    return apiRequest(`/daily/${id}/`, "DELETE");
+};
