@@ -1,16 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
+const DUMMY_CATEGORIES = [
+    { id: 'gate', title: 'Gate Exam Preparation', icon: 'school', colorFrom: 'from-purple-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-purple-500', iconColor: 'text-[#ffb59e]', highlightColor: 'bg-[#a855f7]' },
+    { id: 'college', title: 'College Course Completion', icon: 'account_balance', colorFrom: 'from-blue-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-blue-500', iconColor: 'text-[#ffb59e]', highlightColor: 'bg-cyan-400' }
+];
+
+const COLOR_THEMES = [
+    { colorFrom: 'from-emerald-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-emerald-500', iconColor: 'text-emerald-400', highlightColor: 'bg-emerald-400' },
+    { colorFrom: 'from-amber-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-amber-500', iconColor: 'text-amber-400', highlightColor: 'bg-amber-400' },
+    { colorFrom: 'from-pink-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-pink-500', iconColor: 'text-pink-400', highlightColor: 'bg-pink-400' },
+    { colorFrom: 'from-rose-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-rose-500', iconColor: 'text-rose-400', highlightColor: 'bg-rose-400' },
+    { colorFrom: 'from-teal-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-teal-500', iconColor: 'text-teal-400', highlightColor: 'bg-teal-400' },
+];
+
 const StudyTracker = () => {
-        const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [categories, setCategories] = useState(() => {
+        const saved = localStorage.getItem('phoenix_study_categories');
+        return saved ? JSON.parse(saved) : DUMMY_CATEGORIES;
+    });
+
+    const [studyLogs, setStudyLogs] = useState(() => {
+        const saved = localStorage.getItem('phoenix_study_logs');
+        return saved ? JSON.parse(saved) : { gate: [], college: [] };
+    });
+
+    useEffect(() => {
+        localStorage.setItem('phoenix_study_categories', JSON.stringify(categories));
+    }, [categories]);
+
+    useEffect(() => {
+        localStorage.setItem('phoenix_study_logs', JSON.stringify(studyLogs));
+    }, [studyLogs]);
+
+    const addCategory = (title) => {
+        const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const theme = COLOR_THEMES[Math.floor(Math.random() * COLOR_THEMES.length)];
+        const newCategory = { id, title, icon: 'bookmark', ...theme };
+        
+        setCategories(prev => [...prev, newCategory]);
+        if (!studyLogs[id]) {
+            setStudyLogs(prev => ({ ...prev, [id]: [] }));
+        }
+        return id;
+    };
+
+    const addLog = (categoryId, logData) => {
+        setStudyLogs(prev => {
+            const catLogs = prev[categoryId] || [];
+            return {
+                ...prev,
+                [categoryId]: [{ id: Date.now(), ...logData, progress: 0 }, ...catLogs]
+            };
+        });
+    };
+
+    const getCategoryProgress = (categoryId) => {
+        const logs = studyLogs[categoryId] || [];
+        if (logs.length === 0) return 0;
+        const totalProgress = logs.reduce((sum, item) => sum + (Number(item.progress) || 0), 0);
+        return Math.round(totalProgress / logs.length);
+    };
+
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-    const [studyLogs, setStudyLogs] = useState([
-        { id: 1, subject: "Quantum Mechanics", topic: "Schrödinger Equation", status: "In Progress", num: 12, rev: 3, weak: true },
-        { id: 2, subject: "Neural Networks", topic: "Backpropagation", status: "Not Started", num: 0, rev: 1, weak: true },
-        { id: 3, subject: "Advanced Calculus", topic: "Stoke's Theorem", status: "Completed", num: 45, rev: 5, weak: false },
-        { id: 4, subject: "Fluid Dynamics", topic: "Navier-Stokes", status: "In Progress", num: 8, rev: 2, weak: false },
-    ]);
+    const [selectedCategory, setSelectedCategory] = useState(categories.length > 0 ? categories[0].id : '');
+    const [newCategoryTitle, setNewCategoryTitle] = useState('');
 
     const [formSubject, setFormSubject] = useState("");
     const [formTopic, setFormTopic] = useState("");
@@ -20,19 +76,26 @@ const StudyTracker = () => {
     const [formWeak, setFormWeak] = useState(false);
 
     const handleAddEntry = () => {
-        if (!formSubject.trim() || !formTopic.trim()) return;
+        let targetCategoryId = selectedCategory;
 
-        const newLog = {
-            id: Date.now(),
+        // Handle creating a new category on the fly
+        if (selectedCategory === 'ADD_NEW') {
+            if (!newCategoryTitle.trim()) return;
+            targetCategoryId = addCategory(newCategoryTitle.trim());
+            setNewCategoryTitle("");
+            setSelectedCategory(targetCategoryId);
+        }
+
+        if (!formSubject.trim() || !formTopic.trim() || !targetCategoryId) return;
+
+        addLog(targetCategoryId, {
             subject: formSubject,
             topic: formTopic,
             status: formStatus,
             num: Number(formNum),
             rev: Number(formRev),
             weak: formWeak
-        };
-
-        setStudyLogs([newLog, ...studyLogs]);
+        });
 
         setFormSubject("");
         setFormTopic("");
@@ -212,6 +275,35 @@ const StudyTracker = () => {
                                         <span className="px-3 py-1 rounded-full bg-primary-container/20 text-primary text-[10px] font-bold uppercase tracking-widest">Live View</span>
                                     </div>
                                 </div>
+                                
+                                {/* New Progress Cards inside Active Learning Log */}
+                                <div className="p-6 grid gap-6 bg-[#180720]/40 border-b border-outline-variant/10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+                                    {categories.map(cat => (
+                                        <Link 
+                                            key={cat.id}
+                                            to={`/study-tracker/${cat.id}`}
+                                            className={`block p-5 rounded-[20px] cursor-pointer transition-all duration-300 border backdrop-blur-xl bg-gradient-to-br ${cat.colorFrom} ${cat.colorTo} ${cat.borderColor} border-opacity-20 hover:border-opacity-50 hover:bg-[#1d0c26]/60 hover:scale-[1.01]`}
+                                        >
+                                            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                                                <span className={`material-symbols-outlined ${cat.iconColor} text-lg`}>{cat.icon}</span>
+                                                {cat.title}
+                                            </h3>
+                                            <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider mb-2 w-full">
+                                                <span className="text-on-surface-variant">Progress</span>
+                                                <span className={`${cat.iconColor}`}>{getCategoryProgress(cat.id)}% Complete</span>
+                                            </div>
+                                            <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden border border-white/5 relative">
+                                                <div className={`${cat.highlightColor} h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.1)]`} style={{ width: `${getCategoryProgress(cat.id)}%` }}></div>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+
+                                {/* 
+                                <div className="p-4 bg-surface-container-low text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">
+                                    Recent Activity
+                                </div>
+
                                 <div className="overflow-x-auto no-scrollbar">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
@@ -270,12 +362,44 @@ const StudyTracker = () => {
                                         </tbody>
                                     </table>
                                 </div>
+                                */}
+
                             </div>
 
                             {/* Add Study Entry Form */}
                             <div className="glass-card p-6 md:p-8 rounded-3xl border border-outline-variant/10 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl">
                                 <h3 className="font-headline text-2xl font-bold text-[#fff9ef] mb-6">Ignite New Subject</h3>
                                 <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-2xl bg-[#0B0014]/40 border border-primary/20 mb-2">
+                                        <div className="space-y-2">
+                                            <label className="text-xs uppercase tracking-widest text-primary font-bold">Target Dashboard Title</label>
+                                            <select 
+                                                className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 appearance-none cursor-pointer font-bold"
+                                                value={selectedCategory} 
+                                                onChange={e => setSelectedCategory(e.target.value)}
+                                            >
+                                                {categories.map(cat => (
+                                                    <option key={cat.id} value={cat.id}>{cat.title}</option>
+                                                ))}
+                                                <option value="ADD_NEW">➕ Create New Title...</option>
+                                            </select>
+                                        </div>
+                                        
+                                        {selectedCategory === 'ADD_NEW' && (
+                                            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <label className="text-xs uppercase tracking-widest text-primary font-bold">New Title Name</label>
+                                                <input 
+                                                    className="w-full bg-[#180720]/80 border border-primary/50 shadow-[0_0_15px_rgba(255,87,26,0.2)] rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none" 
+                                                    placeholder="e.g. Placement Preparation" 
+                                                    type="text" 
+                                                    value={newCategoryTitle} 
+                                                    onChange={e => setNewCategoryTitle(e.target.value)} 
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div className="space-y-2">
                                         <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Subject</label>
                                         <input className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all" placeholder="e.g. Astrophysics" type="text" value={formSubject} onChange={e => setFormSubject(e.target.value)} />
