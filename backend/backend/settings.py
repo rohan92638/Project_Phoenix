@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'test',           
     'accounts',
     'daily_tracker',
+    'study_tracker',
 ]
 
 MIDDLEWARE = [

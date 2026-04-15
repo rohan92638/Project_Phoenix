@@ -23,4 +23,5 @@ urlpatterns = [
     path('test_api/', include('test.urls')), 
     path('auth/', include('accounts.urls')),
     path('daily/', include('daily_tracker.urls')),
+    path('study/', include('study_tracker.urls')),
 ]
