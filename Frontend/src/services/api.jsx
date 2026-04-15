@@ -31,35 +31,35 @@ export const apiRequest = async (endpoint, method = "GET", data = null) => {
 };
 
 
-// 🔹 LOGIN API
+// LOGIN API
 export const loginUser = (data) => {
     return apiRequest("/auth/login/", "POST", data);
 };
 
 
-// 🔹 REGISTER API
+// REGISTER API
 export const registerUser = (data) => {
     return apiRequest("/auth/register/", "POST", data);
 };
 
 // ================= DAILY TRACKER APIs =================
 
-// 🔹 GET all tasks (today)
+// GET all tasks (today)
 export const getTasks = () => {
     return apiRequest("/daily/");
 };
 
-// 🔹 CREATE task
+// CREATE task
 export const createTask = (data) => {
     return apiRequest("/daily/", "POST", data);
 };
 
-// 🔹 UPDATE task
+// UPDATE task
 export const updateTask = (id, data) => {
     return apiRequest(`/daily/${id}/`, "PATCH", data);
 };
 
-// 🔹 DELETE task
+// DELETE task
 export const deleteTask = (id) => {
     return apiRequest(`/daily/${id}/`, "DELETE");
 };
