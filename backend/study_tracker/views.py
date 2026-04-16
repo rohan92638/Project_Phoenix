@@ -6,7 +6,7 @@ from .serializers import CategorySerializer, StudyLogSerializer
 # Get all categories
 @api_view(['GET'])
 def get_categories(request):
-    categories= Category.objects,all()
+    categories= Category.objects.all()
     serializer= CategorySerializer(categories, many=True)
     return Response(serializer.data)
 
