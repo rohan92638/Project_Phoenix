@@ -1,48 +1,79 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-
-const DUMMY_CATEGORIES = [
-    { id: 'gate', title: 'Gate Exam Preparation', icon: 'school', colorFrom: 'from-purple-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-purple-500', iconColor: 'text-[#ffb59e]', highlightColor: 'bg-[#a855f7]' },
-    { id: 'college', title: 'College Course Completion', icon: 'account_balance', colorFrom: 'from-blue-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-blue-500', iconColor: 'text-[#ffb59e]', highlightColor: 'bg-cyan-400' }
-];
+import { getStudyCategories, getStudyLogsByCategory, updateStudyLog } from '../services/api';
 
 const CourseDetail = () => {
     const { courseId } = useParams(); 
     
-    const [categories] = useState(() => {
-        const saved = localStorage.getItem('phoenix_study_categories');
-        return saved ? JSON.parse(saved) : DUMMY_CATEGORIES;
-    });
-
-    const [studyLogs, setStudyLogs] = useState(() => {
-        const saved = localStorage.getItem('phoenix_study_logs');
-        return saved ? JSON.parse(saved) : {};
-    });
-
-    useEffect(() => {
-        localStorage.setItem('phoenix_study_logs', JSON.stringify(studyLogs));
-    }, [studyLogs]);
+    const [categories, setCategories] = useState([]);
+    const [studyLogs, setStudyLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-    const currentData = studyLogs[courseId] || [];
-    const currentCategory = categories.find(c => c.id === courseId) || { title: 'Unknown Course' };
+    useEffect(() => {
+        const fetchCourseData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                // Fetch categories to get title matching courseId
+                const [cats, logs] = await Promise.all([
+                    getStudyCategories(),
+                    getStudyLogsByCategory(courseId)
+                ]);
+                
+                setCategories(cats);
+                setStudyLogs(logs);
+            } catch (err) {
+                setError(err.message || "Failed to load course details.");
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const handleProgressChange = (id, newProgress) => {
+        fetchCourseData();
+    }, [courseId]);
+
+    const currentData = studyLogs;
+    const currentCategory = categories.find(c => c.id == courseId) || { title: 'Loading Course...' };
+
+    const handleProgressChange = async (id, newProgress) => {
         let val = newProgress === '' ? '' : parseInt(newProgress, 10);
         if (val !== '' && isNaN(val)) val = 0;
         if (val !== '') val = Math.max(0, Math.min(100, val));
 
-        setStudyLogs(prev => {
-            if (!prev[courseId]) return prev;
-            return {
-                ...prev,
-                [courseId]: prev[courseId].map(item => 
-                    item.id === id ? { ...item, progress: val } : item
-                )
-            };
-        });
+        // Optimistic UI Update
+        setStudyLogs(prev => 
+            prev.map(item => item.id === id ? { ...item, progress: val } : item)
+        );
+
+        if (val !== '') {
+            try {
+                await updateStudyLog(id, { progress: val });
+            } catch (err) {
+                console.error("Failed to update progress:", err);
+            }
+        }
+    };
+
+    const toggleWeakFlag = async (id, currentWeakStatus) => {
+        const newWeakStatus = !currentWeakStatus;
+        
+        // Optimistic UI Update
+        setStudyLogs(prev => 
+            prev.map(item => item.id === id ? { ...item, weak: newWeakStatus } : item)
+        );
+
+        try {
+            await updateStudyLog(id, { weak: newWeakStatus });
+        } catch (err) {
+            console.error("Failed to update weak status:", err);
+            // Revert on failure
+            setStudyLogs(prev => 
+                prev.map(item => item.id === id ? { ...item, weak: currentWeakStatus } : item)
+            );
+        }
     };
 
     const getStatusStyles = (status) => {
@@ -195,7 +226,11 @@ const CourseDetail = () => {
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 text-center">
-                                                <button className={`material-symbols-outlined text-xl transition-all ${row.weak ? 'text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)] hover:scale-110' : 'text-gray-600 hover:text-gray-400'}`} style={row.weak ? { fontVariationSettings: "'FILL' 1" } : {}}>
+                                                <button 
+                                                    onClick={() => toggleWeakFlag(row.id, row.weak)}
+                                                    className={`material-symbols-outlined text-xl transition-all ${row.weak ? 'text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)] hover:scale-110' : 'text-gray-600 hover:text-gray-400'}`} 
+                                                    style={row.weak ? { fontVariationSettings: "'FILL' 1" } : {}}
+                                                >
                                                     flag
                                                 </button>
                                             </td>

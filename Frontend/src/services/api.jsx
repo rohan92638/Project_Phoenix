@@ -19,7 +19,7 @@ export const apiRequest = async (endpoint, method = "GET", data = null) => {
         const result = await response.json();
 
         if (!response.ok) {
-            console.log(result); 
+            console.log(result);
             throw new Error(result.error || "Something went wrong");
         }
 
@@ -62,4 +62,30 @@ export const updateTask = (id, data) => {
 // DELETE task
 export const deleteTask = (id) => {
     return apiRequest(`/daily/${id}/`, "DELETE");
+};
+
+// ================= STUDY TRACKER APIs =================
+
+export const getStudyCategories = () => {
+    return apiRequest("/study/categories/");
+};
+
+export const createStudyCategory = (data) => {
+    return apiRequest("/study/categories/create/", "POST", data);
+};
+
+export const getAllStudyLogs = () => {
+    return apiRequest("/study/logs/");
+};
+
+export const getStudyLogsByCategory = (categoryId) => {
+    return apiRequest(`/study/logs/${categoryId}/`);
+};
+
+export const createStudyLog = (data) => {
+    return apiRequest("/study/logs/create/", "POST", data);
+};
+
+export const updateStudyLog = (id, data) => {
+    return apiRequest(`/study/logs/${id}/update/`, "PATCH", data);
 };

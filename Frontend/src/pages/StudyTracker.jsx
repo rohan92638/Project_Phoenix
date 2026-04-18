@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-
-const DUMMY_CATEGORIES = [
-    { id: 'gate', title: 'Gate Exam Preparation', icon: 'school', colorFrom: 'from-purple-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-purple-500', iconColor: 'text-[#ffb59e]', highlightColor: 'bg-[#a855f7]' },
-    { id: 'college', title: 'College Course Completion', icon: 'account_balance', colorFrom: 'from-blue-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-blue-500', iconColor: 'text-[#ffb59e]', highlightColor: 'bg-cyan-400' }
-];
+import { getStudyCategories, createStudyCategory, getAllStudyLogs, createStudyLog } from '../services/api';
 
 const COLOR_THEMES = [
     { colorFrom: 'from-emerald-900/10', colorTo: 'to-[#1d0c26]/60', borderColor: 'border-emerald-500', iconColor: 'text-emerald-400', highlightColor: 'bg-emerald-400' },
@@ -15,58 +11,20 @@ const COLOR_THEMES = [
 ];
 
 const StudyTracker = () => {
-    const [categories, setCategories] = useState(() => {
-        const saved = localStorage.getItem('phoenix_study_categories');
-        return saved ? JSON.parse(saved) : DUMMY_CATEGORIES;
-    });
+    // 1. useState Setup
+    const [categories, setCategories] = useState([]);
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    const [studyLogs, setStudyLogs] = useState(() => {
-        const saved = localStorage.getItem('phoenix_study_logs');
-        return saved ? JSON.parse(saved) : { gate: [], college: [] };
-    });
-
-    useEffect(() => {
-        localStorage.setItem('phoenix_study_categories', JSON.stringify(categories));
-    }, [categories]);
-
-    useEffect(() => {
-        localStorage.setItem('phoenix_study_logs', JSON.stringify(studyLogs));
-    }, [studyLogs]);
-
-    const addCategory = (title) => {
-        const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        const theme = COLOR_THEMES[Math.floor(Math.random() * COLOR_THEMES.length)];
-        const newCategory = { id, title, icon: 'bookmark', ...theme };
-        
-        setCategories(prev => [...prev, newCategory]);
-        if (!studyLogs[id]) {
-            setStudyLogs(prev => ({ ...prev, [id]: [] }));
-        }
-        return id;
-    };
-
-    const addLog = (categoryId, logData) => {
-        setStudyLogs(prev => {
-            const catLogs = prev[categoryId] || [];
-            return {
-                ...prev,
-                [categoryId]: [{ id: Date.now(), ...logData, progress: 0 }, ...catLogs]
-            };
-        });
-    };
-
-    const getCategoryProgress = (categoryId) => {
-        const logs = studyLogs[categoryId] || [];
-        if (logs.length === 0) return 0;
-        const totalProgress = logs.reduce((sum, item) => sum + (Number(item.progress) || 0), 0);
-        return Math.round(totalProgress / logs.length);
-    };
-
+    // Form Navigation States
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-    const [selectedCategory, setSelectedCategory] = useState(categories.length > 0 ? categories[0].id : '');
+    // Form Data States
+    const [selectedCategory, setSelectedCategory] = useState('');
     const [newCategoryTitle, setNewCategoryTitle] = useState('');
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
 
     const [formSubject, setFormSubject] = useState("");
     const [formTopic, setFormTopic] = useState("");
@@ -75,34 +33,101 @@ const StudyTracker = () => {
     const [formRev, setFormRev] = useState(0);
     const [formWeak, setFormWeak] = useState(false);
 
-    const handleAddEntry = () => {
-        let targetCategoryId = selectedCategory;
+    // 2. useEffect (Initial Load)
+    const fetchData = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const fetchedCategories = await getStudyCategories();
+            const fetchedLogs = await getAllStudyLogs();
+            
+            // Map frontend themes to the backend categories
+            const themedCategories = fetchedCategories.map((cat, index) => {
+                const theme = COLOR_THEMES[index % COLOR_THEMES.length];
+                return { ...cat, icon: 'bookmark', ...theme };
+            });
 
-        // Handle creating a new category on the fly
-        if (selectedCategory === 'ADD_NEW') {
-            if (!newCategoryTitle.trim()) return;
-            targetCategoryId = addCategory(newCategoryTitle.trim());
-            setNewCategoryTitle("");
-            setSelectedCategory(targetCategoryId);
+            setCategories(themedCategories);
+            setLogs(fetchedLogs);
+            
+            if (themedCategories.length > 0 && !selectedCategory) {
+                setSelectedCategory(themedCategories[0].id);
+            }
+        } catch (err) {
+            setError(err.message || "Failed to load tracker logs.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    // Helper: Calculate progress percentage for a category based on 'Completed' status
+    const getCategoryProgress = (categoryId) => {
+        const catLogs = logs.filter(l => l.category && l.category.id === categoryId);
+        if (catLogs.length === 0) return 0;
+        
+        const completed = catLogs.filter(l => l.status === 'Completed').length;
+        return Math.round((completed / catLogs.length) * 100);
+    };
+
+    // 4. FORM SUBMISSION (CRITICAL)
+    const handleAddEntry = async () => {
+        if (!formTopic.trim()) {
+            setError("Topic name is required.");
+            return;
         }
 
-        if (!formSubject.trim() || !formTopic.trim() || !targetCategoryId) return;
+        let targetCategoryId = selectedCategory;
 
-        addLog(targetCategoryId, {
-            subject: formSubject,
-            topic: formTopic,
-            status: formStatus,
-            num: Number(formNum),
-            rev: Number(formRev),
-            weak: formWeak
-        });
+        try {
+            // STEP 1: Check if making new category
+            if (targetCategoryId === 'ADD_NEW') {
+                if (!newCategoryTitle.trim()) {
+                    setError("Please provide a new title name.");
+                    return;
+                }
+                const newCatResponse = await createStudyCategory({ title: newCategoryTitle.trim() });
+                targetCategoryId = newCatResponse.id;
+            }
 
-        setFormSubject("");
-        setFormTopic("");
-        setFormStatus("Not Started");
-        setFormNum(0);
-        setFormRev(0);
-        setFormWeak(false);
+            if (!targetCategoryId) {
+                setError("Invalid category selection.");
+                return;
+            }
+
+            // STEP 2: POST to create log
+            const logData = {
+                category: targetCategoryId,
+                subject: formSubject.trim() || newCategoryTitle.trim() || "General",
+                topic: formTopic.trim(), 
+                status: formStatus,
+                numericals: parseInt(formNum, 10) || 0,
+                revision: parseInt(formRev, 10) || 0,
+                weak: formWeak
+            };
+
+            await createStudyLog(logData);
+
+            // 5. AFTER SUBMIT (Fetch Logs & Clear Form)
+            await fetchData(); 
+            
+            setSelectedCategory(targetCategoryId);
+            setNewCategoryTitle("");
+            setIsEditingTitle(false);
+            setFormSubject("");
+            setFormTopic("");
+            setFormStatus("Not Started");
+            setFormNum(0);
+            setFormRev(0);
+            setFormWeak(false);
+            setError(null);
+
+        } catch (err) {
+            setError(err.message || "Failed to add entry. Please verify API state.");
+        }
     };
 
     return (
@@ -129,7 +154,7 @@ const StudyTracker = () => {
                         <span className="material-symbols-outlined text-[#ffb59e]/70 hover:text-[#fff9ef] transition-colors cursor-pointer">notifications</span>
                         <div className="flex items-center gap-3">
                             <span className="hidden sm:block font-medium text-on-surface text-sm">Alex Mercer</span>
-                            <img alt="User avatar" className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-primary/20 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJX57hND0c23Vl9y9cQ-b8y7jvLmQ3EuvRdMxc0MlHAROaZlmIQKhsKb6qA0PkXrL7hzV4B7B-qbMSFe7fvO7Zbtw-ZbFzfqpvYHrp_qVB1et2M9otwJ_b1teBRyQnc76VmkPo061BEXfioiJkV9mFOPsPI5WZ14PFGgxB3NiAE0tq3CrjCBPTBvn8FSfJPC10cyOj1H92-_nCk-EhmB4xI1F65neVrMNF-VaF1OZuZyEAgepJdftLUAeZ4TtS4mjBOGNCrC1r"/>
+                            <img alt="User avatar" className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-primary/20 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJX57hND0c23Vl9y9cQ-b8y7jvLmQ3EuvRdMxc0MlHAROaZlmIQKhsKb6qA0PkXrL7hzV4B7B-qbMSFe7fvO7Zbtw-ZbFzfqpvYHrp_qVB1et2M9otwJ_b1teBRyQnc76VmkPo061BEXfioiJkV9mFOPsPI5WZ14PFGgxB3NiAE0tq3CrjCBPTBvn8FSfJPC10cyOj1H92-_nCk-EhmB4xI1F65neVrMNF-VaF1OZuZyEAgepJdftLUAeZ4TtS4mjBOGNCrC1r" />
                         </div>
                     </div>
                 </div>
@@ -190,23 +215,23 @@ const StudyTracker = () => {
 
                     <div className="mt-auto pt-8">
                         <div className="flex flex-col w-full">
-                        <button 
-                            className="flex items-center justify-between w-full text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium" 
-                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                        >
-                            <div className="flex items-center gap-4">
-                                <span className="material-symbols-outlined">settings</span> Settings
-                            </div>
-                            <span className="material-symbols-outlined text-sm">{isSettingsOpen ? 'expand_less' : 'expand_more'}</span>
-                        </button>
-                        {isSettingsOpen && (
-                            <div className="flex flex-col bg-[#1d0c26]/50 py-2 pl-14 pr-6 space-y-2 border-l-2 border-[#ffb59e]/20 ml-6 mb-2">
-                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Update Profile</Link>
-                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Change Version</Link>
-                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Target</Link>
-                            </div>
-                        )}
-                    </div>
+                            <button
+                                className="flex items-center justify-between w-full text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium"
+                                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <span className="material-symbols-outlined">settings</span> Settings
+                                </div>
+                                <span className="material-symbols-outlined text-sm">{isSettingsOpen ? 'expand_less' : 'expand_more'}</span>
+                            </button>
+                            {isSettingsOpen && (
+                                <div className="flex flex-col bg-[#1d0c26]/50 py-2 pl-14 pr-6 space-y-2 border-l-2 border-[#ffb59e]/20 ml-6 mb-2">
+                                    <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Update Profile</Link>
+                                    <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Change Version</Link>
+                                    <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Target</Link>
+                                </div>
+                            )}
+                        </div>
                         <Link className="flex items-center gap-4 text-error/70 py-3 px-6 hover:bg-error/10 hover:text-error transition-all duration-500 font-body text-sm font-medium mt-2" to="/login">
                             <span className="material-symbols-outlined">logout</span> System Logout
                         </Link>
@@ -275,29 +300,43 @@ const StudyTracker = () => {
                                         <span className="px-3 py-1 rounded-full bg-primary-container/20 text-primary text-[10px] font-bold uppercase tracking-widest">Live View</span>
                                     </div>
                                 </div>
-                                
-                                {/* New Progress Cards inside Active Learning Log */}
-                                <div className="p-6 grid gap-6 bg-[#180720]/40 border-b border-outline-variant/10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-                                    {categories.map(cat => (
-                                        <Link 
-                                            key={cat.id}
-                                            to={`/study-tracker/${cat.id}`}
-                                            className={`block p-5 rounded-[20px] cursor-pointer transition-all duration-300 border backdrop-blur-xl bg-gradient-to-br ${cat.colorFrom} ${cat.colorTo} ${cat.borderColor} border-opacity-20 hover:border-opacity-50 hover:bg-[#1d0c26]/60 hover:scale-[1.01]`}
-                                        >
-                                            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                                                <span className={`material-symbols-outlined ${cat.iconColor} text-lg`}>{cat.icon}</span>
-                                                {cat.title}
-                                            </h3>
-                                            <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider mb-2 w-full">
-                                                <span className="text-on-surface-variant">Progress</span>
-                                                <span className={`${cat.iconColor}`}>{getCategoryProgress(cat.id)}% Complete</span>
-                                            </div>
-                                            <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden border border-white/5 relative">
-                                                <div className={`${cat.highlightColor} h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.1)]`} style={{ width: `${getCategoryProgress(cat.id)}%` }}></div>
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
+
+                                {/* Loading & Empty States */}
+                                {loading ? (
+                                    <div className="p-8 text-center bg-[#180720]/40">
+                                        <span className="material-symbols-outlined animate-spin text-primary text-3xl mb-2">sync</span>
+                                        <p className="text-on-surface-variant font-bold">Synchronizing with Phoenix Network...</p>
+                                    </div>
+                                ) : categories.length === 0 ? (
+                                    <div className="p-8 text-center bg-[#180720]/40">
+                                        <span className="material-symbols-outlined text-outline text-4xl mb-3">inbox</span>
+                                        <p className="text-on-surface-variant font-bold mb-1">No Active Subjects Found</p>
+                                        <p className="text-sm text-outline">Ignite a new subject below to start tracking your progress.</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-6 grid gap-6 bg-[#180720]/40 border-b border-outline-variant/10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+                                        {categories.map(cat => (
+                                            <Link
+                                                key={cat.id}
+                                                to={`/study-tracker/${cat.id}`}
+                                                className={`block p-5 rounded-[20px] cursor-pointer transition-all duration-300 border backdrop-blur-xl bg-gradient-to-br ${cat.colorFrom} ${cat.colorTo} ${cat.borderColor} border-opacity-20 hover:border-opacity-50 hover:bg-[#1d0c26]/60 hover:scale-[1.01]`}
+                                            >
+                                                <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                                                    <span className={`material-symbols-outlined ${cat.iconColor} text-lg`}>{cat.icon}</span>
+                                                    {cat.title}
+                                                </h3>
+                                                <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider mb-2 w-full">
+                                                    <span className="text-on-surface-variant">Progress</span>
+                                                    <span className={`${cat.iconColor}`}>{getCategoryProgress(cat.id)}% Complete</span>
+                                                </div>
+                                                <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden border border-white/5 relative">
+                                                    <div className={`${cat.highlightColor} h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.1)]`} style={{ width: `${getCategoryProgress(cat.id)}%` }}></div>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                                 {/* 
                                 <div className="p-4 bg-surface-container-low text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">
@@ -364,38 +403,108 @@ const StudyTracker = () => {
                                 </div>
                                 */}
 
-                            </div>
-
                             {/* Add Study Entry Form */}
                             <div className="glass-card p-6 md:p-8 rounded-3xl border border-outline-variant/10 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl">
                                 <h3 className="font-headline text-2xl font-bold text-[#fff9ef] mb-6">Ignite New Subject</h3>
-                                <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-2xl bg-[#0B0014]/40 border border-primary/20 mb-2">
-                                        <div className="space-y-2">
+                                {error && (
+                                    <div className="mb-6 p-4 rounded-xl bg-tertiary-container/20 border border-tertiary/30 text-tertiary font-bold flex items-center gap-3">
+                                        <span className="material-symbols-outlined">error</span>
+                                        {error}
+                                    </div>
+                                )}
+
+                                <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={(e) => e.preventDefault()}>
+                                    <div className="md:col-span-2 p-5 rounded-2xl bg-[#0B0014]/60 border border-primary/20 mb-2 shadow-inner">
+                                        <div className="flex justify-between items-center mb-4">
                                             <label className="text-xs uppercase tracking-widest text-primary font-bold">Target Dashboard Title</label>
-                                            <select 
-                                                className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 appearance-none cursor-pointer font-bold"
-                                                value={selectedCategory} 
-                                                onChange={e => setSelectedCategory(e.target.value)}
-                                            >
-                                                {categories.map(cat => (
-                                                    <option key={cat.id} value={cat.id}>{cat.title}</option>
-                                                ))}
-                                                <option value="ADD_NEW">➕ Create New Title...</option>
-                                            </select>
+                                            {selectedCategory === 'ADD_NEW' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedCategory(categories.length > 0 ? categories[0].id : '');
+                                                        setNewCategoryTitle("");
+                                                        setIsEditingTitle(false);
+                                                    }}
+                                                    className="text-[10px] text-on-surface-variant hover:text-white uppercase tracking-widest font-bold transition-colors flex items-center gap-1 bg-white/5 py-1 px-3 rounded-full hover:bg-white/10"
+                                                >
+                                                    <span className="material-symbols-outlined text-[14px]">close</span>
+                                                    Cancel
+                                                </button>
+                                            )}
                                         </div>
-                                        
-                                        {selectedCategory === 'ADD_NEW' && (
-                                            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <label className="text-xs uppercase tracking-widest text-primary font-bold">New Title Name</label>
-                                                <input 
-                                                    className="w-full bg-[#180720]/80 border border-primary/50 shadow-[0_0_15px_rgba(255,87,26,0.2)] rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none" 
-                                                    placeholder="e.g. Placement Preparation" 
-                                                    type="text" 
-                                                    value={newCategoryTitle} 
-                                                    onChange={e => setNewCategoryTitle(e.target.value)} 
-                                                    autoFocus
-                                                />
+
+                                        {selectedCategory !== 'ADD_NEW' ? (
+                                            <div className="flex flex-col md:flex-row gap-4 items-stretch">
+                                                <div className="relative flex-1">
+                                                    <select 
+                                                        className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 appearance-none cursor-pointer font-bold shadow-sm"
+                                                        value={selectedCategory} 
+                                                        onChange={e => setSelectedCategory(e.target.value)}
+                                                    >
+                                                        {categories.map(cat => (
+                                                            <option key={cat.id} value={cat.id}>{cat.title}</option>
+                                                        ))}
+                                                    </select>
+                                                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-primary/70">
+                                                        expand_more
+                                                    </span>
+                                                </div>
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedCategory('ADD_NEW');
+                                                        setIsEditingTitle(true);
+                                                    }}
+                                                    className="px-6 py-4 rounded-xl bg-primary-container/10 border border-primary/30 text-primary hover:bg-primary/20 font-bold whitespace-nowrap transition-all shadow-[0_0_15px_rgba(255,87,26,0.1)] hover:shadow-[0_0_20px_rgba(255,87,26,0.2)] flex items-center justify-center gap-2 group"
+                                                >
+                                                    <span className="material-symbols-outlined text-lg group-hover:scale-110 transition-transform">add_circle</span>
+                                                    Create New Title...
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full animate-in fade-in zoom-in-95 duration-200">
+                                                {isEditingTitle ? (
+                                                    <div className="relative">
+                                                        <input 
+                                                            autoFocus
+                                                            className="w-full bg-[#180720]/90 border-2 border-primary shadow-[0_0_15px_rgba(255,87,26,0.2)] rounded-xl focus:ring-4 focus:ring-primary/20 text-white p-4 pr-12 transition-all outline-none font-bold text-lg placeholder:text-white/20 placeholder:font-normal" 
+                                                            placeholder="Enter dashboard title (e.g. Placement Prep)..." 
+                                                            type="text" 
+                                                            value={newCategoryTitle} 
+                                                            onChange={e => setNewCategoryTitle(e.target.value)}
+                                                            onBlur={() => {
+                                                                if (newCategoryTitle.trim()) setIsEditingTitle(false);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    if (newCategoryTitle.trim()) setIsEditingTitle(false);
+                                                                }
+                                                            }}
+                                                        />
+                                                        <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-primary font-bold">
+                                                            keyboard_return
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div 
+                                                        className="w-full bg-gradient-to-r from-[#180720] to-[#26142e] border border-primary/40 rounded-xl p-5 flex justify-between items-center cursor-pointer hover:border-primary transition-all group shadow-[0_0_15px_rgba(255,87,26,0.15)] hover:shadow-[0_0_25px_rgba(255,87,26,0.3)]"
+                                                        onClick={() => setIsEditingTitle(true)}
+                                                    >
+                                                        <span className="font-bold text-[#fff9ef] text-lg flex items-center gap-3">
+                                                            <span className="w-2.5 h-2.5 rounded-full bg-primary block shadow-[0_0_10px_rgba(255,181,158,1)] animate-pulse"></span>
+                                                            {newCategoryTitle || "Untitled Dashboard Title"}
+                                                        </span>
+                                                        <div className="flex items-center gap-3 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                                                            <span className="text-[10px] uppercase tracking-widest text-primary/90 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Click to Edit</span>
+                                                            <span className="material-symbols-outlined text-primary/70 group-hover:text-primary transition-colors text-sm">edit</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <p className="text-xs text-on-surface-variant/70 mt-3 flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-[14px]">info</span>
+                                                    Press Enter or click outside to save the new dashboard title.
+                                                </p>
                                             </div>
                                         )}
                                     </div>
