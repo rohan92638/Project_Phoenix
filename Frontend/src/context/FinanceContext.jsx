@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { getTransactions, createTransaction, deleteTransactionAPI } from '../services/api';
+import { getTransactions, createTransaction, deleteTransactionAPI, getFinanceSummary } from '../services/api';
 
 export const FinanceContext = createContext();
 
@@ -7,16 +7,23 @@ export const FinanceProvider = ({ children }) => {
     const [expenses, setExpenses] = useState([]);
     const [incomes, setIncomes] = useState([]);
     const [savingsEntries, setSavingsEntries] = useState([]);
+    const [dashboardData, setDashboardData] = useState({ income: 0, expenses: 0, savings: 0, saving_ratio: 0 });
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchTransactions = async () => {
         try {
-            const data = await getTransactions();
+            const [data, summaryResult] = await Promise.all([
+                getTransactions(),
+                getFinanceSummary()
+            ]);
+            
             const parseFloatAmt = (d) => ({ ...d, amount: parseFloat(d.amount), type: d.payment_method }); 
             
             setExpenses(data.filter(t => t.transaction_type === 'EXPENSE').map(parseFloatAmt));
             setIncomes(data.filter(t => t.transaction_type === 'INCOME').map(parseFloatAmt));
             setSavingsEntries(data.filter(t => t.transaction_type === 'SAVING').map(parseFloatAmt));
+            
+            setDashboardData(summaryResult);
         } catch (error) {
             console.error("Failed to fetch finance records:", error);
         } finally {
@@ -24,14 +31,18 @@ export const FinanceProvider = ({ children }) => {
         }
     };
 
+    const refreshSummary = async () => {
+        try {
+            const summaryResult = await getFinanceSummary();
+            setDashboardData(summaryResult);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     useEffect(() => {
         fetchTransactions();
     }, []);
-
-    // Derived State
-    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-    const totalIncome = incomes.reduce((s, e) => s + e.amount, 0);
-    const savings = totalIncome - totalExpenses + savingsEntries.reduce((s, e) => s + e.amount, 0);
 
     // Mutations
     const addExpense = async (entry) => {
@@ -41,6 +52,7 @@ export const FinanceProvider = ({ children }) => {
             delete payload.type; 
             const res = await createTransaction(payload);
             setExpenses([{ ...res, amount: parseFloat(res.amount), type: res.payment_method }, ...expenses]);
+            await refreshSummary();
         } catch (error) { console.error("Expense post failed:", error); }
     };
 
@@ -50,6 +62,7 @@ export const FinanceProvider = ({ children }) => {
             delete payload.id;
             const res = await createTransaction(payload);
             setIncomes([{ ...res, amount: parseFloat(res.amount) }, ...incomes]);
+            await refreshSummary();
         } catch (error) { console.error("Income post failed:", error); }
     };
 
@@ -59,6 +72,7 @@ export const FinanceProvider = ({ children }) => {
             delete payload.id;
             const res = await createTransaction(payload);
             setSavingsEntries([{ ...res, amount: parseFloat(res.amount) }, ...savingsEntries]);
+            await refreshSummary();
         } catch (error) { console.error("Savings post failed:", error); }
     };
 
@@ -66,6 +80,7 @@ export const FinanceProvider = ({ children }) => {
         try { 
             await deleteTransactionAPI(id); 
             setExpenses(expenses.filter(e => e.id !== id)); 
+            await refreshSummary();
         } catch(e) { console.error(e) }
     };
     
@@ -73,6 +88,7 @@ export const FinanceProvider = ({ children }) => {
         try { 
             await deleteTransactionAPI(id); 
             setIncomes(incomes.filter(e => e.id !== id)); 
+            await refreshSummary();
         } catch(e) { console.error(e) }
     };
     
@@ -80,6 +96,7 @@ export const FinanceProvider = ({ children }) => {
         try { 
             await deleteTransactionAPI(id); 
             setSavingsEntries(savingsEntries.filter(e => e.id !== id)); 
+            await refreshSummary();
         } catch(e) { console.error(e) }
     };
 
@@ -89,7 +106,11 @@ export const FinanceProvider = ({ children }) => {
                 expenses, setExpenses, addExpense, deleteExpense,
                 incomes, setIncomes, addIncome, deleteIncome,
                 savingsEntries, setSavingsEntries, addSavings, deleteSavings,
-                totalExpenses, totalIncome, savings, isLoading
+                totalExpenses: dashboardData.expenses, 
+                totalIncome: dashboardData.income, 
+                savings: dashboardData.savings, 
+                savingRatio: dashboardData.saving_ratio,
+                isLoading
             }}
         >
             {children}

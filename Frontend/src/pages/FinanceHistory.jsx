@@ -18,7 +18,7 @@ const fmtDate = (iso) => {
     const d = new Date(iso);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
-const fmtAmt = (n) => `$${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+const fmtAmt = (n) => `₹${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 const FinanceHistory = ({ type }) => {
     const { 
@@ -49,7 +49,7 @@ const FinanceHistory = ({ type }) => {
         title = 'Income History';
         iconUrl = 'account_balance_wallet';
         themeColor = 'text-secondary-fixed';
-        totalValue = incomes.reduce((s, e) => s + e.amount, 0) + 8500; // showing total base + extra
+        totalValue = incomes.reduce((s, e) => s + e.amount, 0);
     } else {
         data = savingsEntries;
         deleteHandler = deleteSavings;

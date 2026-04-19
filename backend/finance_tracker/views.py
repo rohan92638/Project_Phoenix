@@ -1,5 +1,8 @@
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum
 from .models import Transaction
 from .serializers import TransactionSerializer
 
@@ -17,3 +20,28 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Auto-bind the transaction exclusively against the active token
         serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        qs = self.get_queryset()
+        
+        income = qs.filter(transaction_type='INCOME').aggregate(total=Sum('amount'))['total'] or 0
+        expenses = qs.filter(transaction_type='EXPENSE').aggregate(total=Sum('amount'))['total'] or 0
+        manual_savings = qs.filter(transaction_type='SAVING').aggregate(total=Sum('amount'))['total'] or 0
+        
+        income = float(income)
+        expenses = float(expenses)
+        manual_savings = float(manual_savings)
+        
+        savings = income - expenses + manual_savings
+        
+        saving_ratio = 0
+        if income > 0:
+            saving_ratio = round((savings / income) * 100, 1)
+            
+        return Response({
+            "income": income,
+            "expenses": expenses,
+            "savings": savings,
+            "saving_ratio": saving_ratio
+        })

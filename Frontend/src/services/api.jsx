@@ -65,6 +65,9 @@ export const getJournalStats = () => { return apiRequest("/api/journal/stats/");
 export const getTransactions = () => {
     return apiRequest("/api/finance/transactions/");
 };
+export const getFinanceSummary = () => {
+    return apiRequest("/api/finance/transactions/summary/");
+};
 export const createTransaction = (data) => {
     return apiRequest("/api/finance/transactions/", "POST", data);
 };

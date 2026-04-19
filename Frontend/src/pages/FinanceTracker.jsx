@@ -29,7 +29,7 @@ const fmtDate = (iso) => {
     const d = new Date(iso);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
-const fmtAmt = (n) => `$${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+const fmtAmt = (n) => `₹${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const FinanceTracker = () => {
@@ -37,7 +37,7 @@ const FinanceTracker = () => {
         expenses, addExpense, deleteExpense,
         incomes, addIncome, deleteIncome,
         savingsEntries, addSavings, deleteSavings,
-        totalExpenses, totalIncome, savings
+        totalExpenses, totalIncome, savings, savingRatio
     } = useContext(FinanceContext);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -52,8 +52,6 @@ const FinanceTracker = () => {
     const [formDesc, setFormDesc] = useState('');
     const [formType, setFormType] = useState('Card');
     const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
-
-    const savingsRatio = ((savings / totalIncome) * 100).toFixed(1);
 
     const handleAddTransaction = () => {
         if (!formAmount || !formDesc.trim()) return;
@@ -291,7 +289,7 @@ const FinanceTracker = () => {
                             <div className="text-3xl font-headline font-black text-[#f6d9fd]">{fmtAmt(savings)}</div>
                             <div className="mt-3 flex items-center gap-1 text-xs text-primary font-medium">
                                 <span className="material-symbols-outlined text-sm">auto_awesome</span>
-                                {savingsRatio}% Saving Ratio
+                                {savingRatio}% Saving Ratio
                             </div>
                         </Link>
                         {/* Goal Progress */}
@@ -600,9 +598,9 @@ const FinanceTracker = () => {
                                 {/* 3-column asset grid */}
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                                     {[
-                                        { icon: 'show_chart', iconColor: 'text-secondary', bg: 'bg-secondary/10', label: 'Mutual Funds', sub: '3 Active Funds', val: '$12,450', pct: '+12.4%', up: true },
-                                        { icon: 'candlestick_chart', iconColor: 'text-primary', bg: 'bg-primary/10', label: 'Stock Equity', sub: '12 Companies', val: '$8,120', pct: '-2.1%', up: false },
-                                        { icon: 'currency_bitcoin', iconColor: 'text-on-surface', bg: 'bg-surface-container-highest', label: 'Trading', sub: 'Crypto / Forex', val: '$4,500', pct: '+5.7%', up: true },
+                                        { icon: 'show_chart', iconColor: 'text-secondary', bg: 'bg-secondary/10', label: 'Mutual Funds', sub: '3 Active Funds', val: '₹12,450', pct: '+12.4%', up: true },
+                                        { icon: 'candlestick_chart', iconColor: 'text-primary', bg: 'bg-primary/10', label: 'Stock Equity', sub: '12 Companies', val: '₹8,120', pct: '-2.1%', up: false },
+                                        { icon: 'currency_bitcoin', iconColor: 'text-on-surface', bg: 'bg-surface-container-highest', label: 'Trading', sub: 'Crypto / Forex', val: '₹4,500', pct: '+5.7%', up: true },
                                     ].map(({ icon, iconColor, bg, label, sub, val, pct, up }) => (
                                         <div key={label} className="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-low/60 border border-outline-variant/10 hover:bg-surface-container hover:border-primary/20 transition-all group">
                                             <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
@@ -625,7 +623,7 @@ const FinanceTracker = () => {
                                     <div className="flex items-end justify-between mb-4">
                                         <div>
                                             <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold mb-1">Total Portfolio</p>
-                                            <div className="text-3xl font-headline font-black text-secondary">$25,070.00</div>
+                                            <div className="text-3xl font-headline font-black text-secondary">₹25,070.00</div>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold mb-1">Overall Return</p>
