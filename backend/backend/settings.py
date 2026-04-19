@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'accounts',
     'daily_tracker',
     'study_tracker',
+    'journal',
 ]
 
 MIDDLEWARE = [
@@ -146,6 +147,8 @@ AUTH_USER_MODEL = "accounts.User"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 ]
 
 # JWT Authentication (ADD THIS BELOW)

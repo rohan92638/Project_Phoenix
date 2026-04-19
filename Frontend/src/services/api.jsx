@@ -89,3 +89,28 @@ export const createStudyLog = (data) => {
 export const updateStudyLog = (id, data) => {
     return apiRequest(`/study/logs/${id}/update/`, "PATCH", data);
 };
+// ================= JOURNAL APIs =================
+
+export const getJournalEntries = () => {
+    return apiRequest("/api/journal/");
+};
+
+export const createJournalEntry = (data) => {
+    return apiRequest("/api/journal/", "POST", data);
+};
+
+export const updateJournalEntry = (id, data) => {
+    return apiRequest(`/api/journal/${id}/`, "PATCH", data);
+};
+
+export const deleteJournalEntry = (id) => {
+    return apiRequest(`/api/journal/${id}/`, "DELETE");
+};
+
+export const getJournalFeatured = () => {
+    return apiRequest("/api/journal/featured/");
+};
+
+export const getJournalStats = () => {
+    return apiRequest("/api/journal/stats/");
+};

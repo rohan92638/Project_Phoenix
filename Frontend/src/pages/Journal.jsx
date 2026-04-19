@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { getJournalEntries, getJournalStats, getJournalFeatured, createJournalEntry, deleteJournalEntry } from '../services/api';
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 const today = new Date();
@@ -104,7 +105,12 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
 const Journal = () => {
         const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [entries, setEntries] = useState(SEED_ENTRIES);
+    
+    // API State
+    const [entries, setEntries] = useState([]);
+    const [stats, setStats] = useState({ total_entries: 0, day_streak: 0, all_time_best: 0 });
+    const [featuredEntry, setFeaturedEntry] = useState(null);
+    
     const [selectedDate, setSelectedDate] = useState(null);
 
     // Calendar state
@@ -135,34 +141,74 @@ const Journal = () => {
         setModalStep('write');
     };
 
-    const handleAddEntry = () => {
-        if (!formTitle.trim() || !formBody.trim()) return;
-        const tags = formTags.split(',').map(t => t.trim()).filter(Boolean).map(t => t.startsWith('#') ? t : `#${t}`);
-        const newEntry = {
-            id: Date.now(),
-            date: today.toISOString().split('T')[0],
-            title: formTitle.trim(),
-            type: modalType.type,
-            typeIcon: modalType.icon,
-            typeColor: modalType.color,
-            typeBg: `${modalType.color.replace('text-', 'bg-')}/10`,
-            tags: tags.length ? tags : ['#Reflection'],
-            body: formBody.trim(),
-            featured: false,
-        };
-        setEntries([newEntry, ...entries]);
-        setShowModal(false);
-        setModalStep('pick');
-        setFormTitle('');
-        setFormBody('');
-        setFormTags('');
-        setModalType(null);
+    const fetchJournalData = async () => {
+        try {
+            const [entriesRes, statsRes, featuredRes] = await Promise.all([
+                getJournalEntries(),
+                getJournalStats(),
+                getJournalFeatured()
+            ]);
+            setEntries(entriesRes);
+            setStats(statsRes);
+            setFeaturedEntry(featuredRes && !featuredRes.error ? featuredRes : null);
+        } catch (error) {
+            console.error('Failed to fetch journal data:', error);
+        }
     };
 
-    const handleDelete = (id) => setEntries(entries.filter(e => e.id !== id));
+    useEffect(() => {
+        fetchJournalData();
+    }, []);
 
-    const featuredEntry = entries.find(e => isYesterday(e.date)) || entries[0];
-    const otherEntries = entries.filter(e => e.id !== featuredEntry?.id);
+    const handleAddEntry = async () => {
+        if (!formTitle.trim() || !formBody.trim()) return;
+        
+        let tags = [];
+        if (formTags.trim()) {
+            tags = formTags.split(',').map(t => t.trim()).filter(Boolean).map(t => t.startsWith('#') ? t : `#${t}`);
+        } else {
+            tags = ['#Reflection'];
+        }
+
+        const data = {
+            title: formTitle.trim(),
+            type: modalType.type,
+            tags: tags,
+            body: formBody.trim()
+        };
+
+        try {
+            await createJournalEntry(data);
+            await fetchJournalData(); 
+            
+            setShowModal(false);
+            setModalStep('pick');
+            setFormTitle('');
+            setFormBody('');
+            setFormTags('');
+            setModalType(null);
+        } catch (error) {
+            console.error('Error creating entry:', error);
+            alert('Failed to create entry. Please try again.');
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if(!window.confirm('Are you sure you want to delete this entry?')) return;
+        try {
+            await deleteJournalEntry(id);
+            await fetchJournalData();
+        } catch (error) {
+            console.error('Failed to delete entry', error);
+        }
+    };
+
+    // Show selected date if any, otherwise all barring featured
+    const otherEntries = entries.filter(e => {
+        if (featuredEntry && e.id === featuredEntry.id) return false;
+        if (selectedDate) return e.date === selectedDate;
+        return true;
+    });
 
     return (
         <div className="bg-[#0B0014] text-on-surface font-body min-h-screen overflow-x-hidden selection:bg-primary-container selection:text-white">
@@ -432,9 +478,9 @@ const Journal = () => {
                                 <h4 className="font-headline text-base font-bold text-secondary mb-5">Writing Streak</h4>
                                 <div className="flex items-center justify-around">
                                     {[
-                                        { val: entries.length, label: 'Total Entries', color: 'text-primary' },
-                                        { val: 7, label: 'Day Streak', color: 'text-secondary' },
-                                        { val: 42, label: 'All-Time Best', color: 'text-tertiary' },
+                                        { val: stats.total_entries, label: 'Total Entries', color: 'text-primary' },
+                                        { val: stats.day_streak, label: 'Day Streak', color: 'text-secondary' },
+                                        { val: stats.all_time_best, label: 'All-Time Best', color: 'text-tertiary' },
                                     ].map(({ val, label, color }) => (
                                         <div key={label} className="text-center">
                                             <div className={`text-3xl font-headline font-black ${color}`}>{val}</div>
