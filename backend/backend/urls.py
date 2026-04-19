@@ -25,4 +25,5 @@ urlpatterns = [
     path('daily/', include('daily_tracker.urls')),
     path('study/', include('study_tracker.urls')),
     path('api/journal/', include('journal.urls')),
+    path('api/finance/', include('finance_tracker.urls')),
 ]

@@ -1,14 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
-
-// ─── Seed Data ────────────────────────────────────────────────────────────────
-const SEED_EXPENSES = [
-    { id: 1, date: '2024-10-24', category: 'Food & Dining', description: 'Whole Foods Market', amount: 124.50, type: 'Card' },
-    { id: 2, date: '2024-10-23', category: 'Rent', description: 'Skyline Apartments', amount: 2100.00, type: 'UPI' },
-    { id: 3, date: '2024-10-22', category: 'Entertainment', description: 'Cinema Ticket', amount: 15.00, type: 'Cash' },
-    { id: 4, date: '2024-10-21', category: 'Transportation', description: 'Metro Card Top-up', amount: 40.00, type: 'UPI' },
-    { id: 5, date: '2024-10-20', category: 'Shopping', description: 'Amazon Delivery', amount: 89.99, type: 'Card' },
-];
+import { FinanceContext } from '../context/FinanceContext';
 
 const CATEGORY_COLORS = {
     'Food & Dining': { bg: 'bg-primary/10', text: 'text-primary' },
@@ -41,9 +33,18 @@ const fmtAmt = (n) => `$${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const FinanceTracker = () => {
-        const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const {
+        expenses, addExpense, deleteExpense,
+        incomes, addIncome, deleteIncome,
+        savingsEntries, addSavings, deleteSavings,
+        totalExpenses, totalIncome, savings
+    } = useContext(FinanceContext);
+
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [expenses, setExpenses] = useState(SEED_EXPENSES);
+    const [transactionMode, setTransactionMode] = useState('expense'); // 'expense' | 'income' | 'savings'
+    const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+    const [activityFilter, setActivityFilter] = useState('All'); // 'All', 'Expense', 'Income', 'Saving'
 
     // form state
     const [formAmount, setFormAmount] = useState('');
@@ -52,28 +53,46 @@ const FinanceTracker = () => {
     const [formType, setFormType] = useState('Card');
     const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
 
-    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-    const totalIncome = 8500;
-    const savings = totalIncome - totalExpenses;
     const savingsRatio = ((savings / totalIncome) * 100).toFixed(1);
 
-    const handleAddExpense = () => {
+    const handleAddTransaction = () => {
         if (!formAmount || !formDesc.trim()) return;
         const entry = {
             id: Date.now(),
             date: formDate,
-            category: formCategory,
             description: formDesc.trim(),
             amount: parseFloat(formAmount),
-            type: formType,
         };
-        setExpenses([entry, ...expenses]);
+
+        if (transactionMode === 'expense') {
+            addExpense({ ...entry, category: formCategory, type: formType });
+        } else if (transactionMode === 'income') {
+            addIncome(entry);
+        } else if (transactionMode === 'savings') {
+            addSavings(entry);
+        }
+
         setFormAmount(''); setFormDesc(''); setFormDate(new Date().toISOString().split('T')[0]);
+        setIsAddMenuOpen(false);
     };
 
-    const handleDelete = (id) => setExpenses(expenses.filter(e => e.id !== id));
+    const handleDelete = (id, txnType) => {
+        if (txnType === 'Expense') deleteExpense(id);
+        else if (txnType === 'Income') deleteIncome(id);
+        else if (txnType === 'Saving') deleteSavings(id);
+    };
 
     const catColor = (cat) => CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'];
+
+    const allTransactions = [
+        ...expenses.map(e => ({ ...e, txnType: 'Expense' })),
+        ...incomes.map(i => ({ ...i, txnType: 'Income' })),
+        ...savingsEntries.map(s => ({ ...s, txnType: 'Saving' }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const displayedTransactions = activityFilter === 'All' 
+        ? allTransactions 
+        : allTransactions.filter(t => t.txnType === activityFilter);
 
     return (
         <div className="bg-[#0B0014] text-on-surface font-body min-h-screen overflow-x-hidden selection:bg-primary-container selection:text-white">
@@ -249,32 +268,32 @@ const FinanceTracker = () => {
                     {/* ── MONTHLY SUMMARY CARDS ─────────────────────────────── */}
                     <section className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                         {/* Total Expenses */}
-                        <div className="glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
-                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3">Total Expenses</p>
+                        <Link to="/expenses-history" className="block glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)] hover:-translate-y-1 hover:shadow-2xl transition-all cursor-pointer">
+                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3 flex items-center justify-between">Total Expenses <span className="material-symbols-outlined text-xs">open_in_new</span></p>
                             <div className="text-3xl font-headline font-black text-primary">{fmtAmt(totalExpenses)}</div>
                             <div className="mt-3 flex items-center gap-1 text-xs text-error font-medium">
                                 <span className="material-symbols-outlined text-sm">south_east</span>
                                 +4.2% from last month
                             </div>
-                        </div>
+                        </Link>
                         {/* Total Income */}
-                        <div className="glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
-                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3">Total Income</p>
+                        <Link to="/income-history" className="block glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)] hover:-translate-y-1 hover:shadow-2xl transition-all cursor-pointer">
+                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3 flex items-center justify-between">Total Income <span className="material-symbols-outlined text-xs">open_in_new</span></p>
                             <div className="text-3xl font-headline font-black text-secondary-fixed">{fmtAmt(totalIncome)}</div>
                             <div className="mt-3 flex items-center gap-1 text-xs text-emerald-400 font-medium">
                                 <span className="material-symbols-outlined text-sm">north_east</span>
                                 +2.0% from last month
                             </div>
-                        </div>
+                        </Link>
                         {/* Savings */}
-                        <div className="glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
-                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3">Savings</p>
+                        <Link to="/savings-history" className="block glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)] hover:-translate-y-1 hover:shadow-2xl transition-all cursor-pointer">
+                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-3 flex items-center justify-between">Savings <span className="material-symbols-outlined text-xs">open_in_new</span></p>
                             <div className="text-3xl font-headline font-black text-[#f6d9fd]">{fmtAmt(savings)}</div>
                             <div className="mt-3 flex items-center gap-1 text-xs text-primary font-medium">
                                 <span className="material-symbols-outlined text-sm">auto_awesome</span>
                                 {savingsRatio}% Saving Ratio
                             </div>
-                        </div>
+                        </Link>
                         {/* Goal Progress */}
                         <div className="glass-card p-6 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)] flex flex-col items-center justify-center gap-2">
                             <div className="relative w-20 h-20 flex items-center justify-center">
@@ -301,12 +320,50 @@ const FinanceTracker = () => {
                         {/* ── LEFT COLUMN (8/12) ──────────────────────────── */}
                         <div className="xl:col-span-8 space-y-8">
 
-                            {/* ADD EXPENSE FORM */}
+                            {/* TRANSACTION FORM */}
                             <div className="glass-card p-6 md:p-8 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
-                                <h3 className="font-headline text-xl font-bold text-[#fff9ef] mb-6 flex items-center gap-3">
-                                    <span className="material-symbols-outlined text-primary">add_circle</span>
-                                    Quick Transaction
-                                </h3>
+                                <div className="flex items-center justify-between mb-6 relative">
+                                    <h3 className="font-headline text-xl font-bold text-[#fff9ef] flex items-center gap-3">
+                                        <span className={`material-symbols-outlined ${transactionMode === 'expense' ? 'text-primary' : transactionMode === 'income' ? 'text-emerald-400' : 'text-[#f6d9fd]'}`}>
+                                            {transactionMode === 'expense' ? 'add_circle' : transactionMode === 'income' ? 'account_balance_wallet' : 'savings'}
+                                        </span>
+                                        {transactionMode === 'expense' ? 'Quick Transaction' : transactionMode === 'income' ? 'Add Income' : 'Add Savings'}
+                                    </h3>
+                                    <div className="relative">
+                                        <button 
+                                            onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+                                            className="w-10 h-10 rounded-full bg-surface-container-highest/50 hover:bg-surface-container-highest text-on-surface flex items-center justify-center transition-colors"
+                                        >
+                                            <span className="material-symbols-outlined">add</span>
+                                        </button>
+                                        
+                                        {isAddMenuOpen && (
+                                            <div className="absolute right-0 top-12 w-48 bg-[#1d0c26] border border-outline-variant/20 rounded-xl shadow-xl overflow-hidden z-20">
+                                                <button 
+                                                    onClick={() => { setTransactionMode('expense'); setIsAddMenuOpen(false); }}
+                                                    className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-surface-container transition-colors ${transactionMode === 'expense' ? 'text-primary' : 'text-on-surface-variant'}`}
+                                                >
+                                                    <span className="material-symbols-outlined text-sm align-middle mr-2">receipt_long</span>
+                                                    Add Expense
+                                                </button>
+                                                <button 
+                                                    onClick={() => { setTransactionMode('income'); setIsAddMenuOpen(false); }}
+                                                    className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-surface-container transition-colors border-t border-outline-variant/10 ${transactionMode === 'income' ? 'text-emerald-400' : 'text-on-surface-variant'}`}
+                                                >
+                                                    <span className="material-symbols-outlined text-sm align-middle mr-2">account_balance_wallet</span>
+                                                    Add Income
+                                                </button>
+                                                <button 
+                                                    onClick={() => { setTransactionMode('savings'); setIsAddMenuOpen(false); }}
+                                                    className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-surface-container transition-colors border-t border-outline-variant/10 ${transactionMode === 'savings' ? 'text-[#f6d9fd]' : 'text-on-surface-variant'}`}
+                                                >
+                                                    <span className="material-symbols-outlined text-sm align-middle mr-2">savings</span>
+                                                    Add Savings
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                     {/* Amount */}
                                     <div className="space-y-2">
@@ -318,18 +375,30 @@ const FinanceTracker = () => {
                                             className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
                                         />
                                     </div>
-                                    {/* Category */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Category</label>
-                                        <select
-                                            value={formCategory} onChange={e => setFormCategory(e.target.value)}
-                                            className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 appearance-none cursor-pointer"
-                                        >
-                                            {Object.keys(CATEGORY_COLORS).filter(c => c !== 'Other').map(c => (
-                                                <option key={c}>{c}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    {/* Category (Expense) or Description (Income/Savings) */}
+                                    {transactionMode === 'expense' ? (
+                                        <div className="space-y-2">
+                                            <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Category</label>
+                                            <select
+                                                value={formCategory} onChange={e => setFormCategory(e.target.value)}
+                                                className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 appearance-none cursor-pointer"
+                                            >
+                                                {Object.keys(CATEGORY_COLORS).filter(c => c !== 'Other').map(c => (
+                                                    <option key={c}>{c}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
+                                            <input
+                                                type="text" placeholder={`${transactionMode === 'income' ? 'Income' : 'Savings'} description...`}
+                                                value={formDesc} onChange={e => setFormDesc(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && handleAddTransaction()}
+                                                className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
+                                            />
+                                        </div>
+                                    )}
                                     {/* Date */}
                                     <div className="space-y-2">
                                         <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Date</label>
@@ -338,51 +407,67 @@ const FinanceTracker = () => {
                                             className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
                                         />
                                     </div>
-                                    {/* Description */}
-                                    <div className="space-y-2 md:col-span-2">
-                                        <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
-                                        <input
-                                            type="text" placeholder="Expense name..."
-                                            value={formDesc} onChange={e => setFormDesc(e.target.value)}
-                                            onKeyDown={e => e.key === 'Enter' && handleAddExpense()}
-                                            className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
-                                        />
-                                    </div>
-                                    {/* Payment Type + Button */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Payment Type</label>
-                                        <div className="flex gap-2">
-                                            {['Card', 'UPI', 'Cash'].map(t => (
-                                                <button
-                                                    key={t} type="button"
-                                                    onClick={() => setFormType(t)}
-                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${formType === t ? 'bg-primary/20 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40'}`}
-                                                >{t}</button>
-                                            ))}
+                                    {/* Description (Expense) */}
+                                    {transactionMode === 'expense' && (
+                                        <div className="space-y-2 md:col-span-2">
+                                            <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
+                                            <input
+                                                type="text" placeholder="Expense name..."
+                                                value={formDesc} onChange={e => setFormDesc(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && handleAddTransaction()}
+                                                className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
+                                            />
                                         </div>
-                                    </div>
+                                    )}
+                                    {/* Payment Type */}
+                                    {transactionMode === 'expense' && (
+                                        <div className="space-y-2">
+                                            <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Payment Type</label>
+                                            <div className="flex gap-2">
+                                                {['Card', 'UPI', 'Cash'].map(t => (
+                                                    <button
+                                                        key={t} type="button"
+                                                        onClick={() => setFormType(t)}
+                                                        className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${formType === t ? 'bg-primary/20 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40'}`}
+                                                    >{t}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                     {/* Submit */}
                                     <div className="md:col-span-3">
                                         <button
-                                            type="button" onClick={handleAddExpense}
-                                            className="w-full py-4 rounded-xl bg-gradient-to-r from-primary to-primary-container text-background font-bold uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(255,87,26,0.3)] hover:scale-[1.01] active:scale-[0.98] transition-all"
+                                            type="button" onClick={handleAddTransaction}
+                                            className={`w-full py-4 rounded-xl font-bold uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:scale-[1.01] active:scale-[0.98] transition-all ${
+                                                transactionMode === 'expense' ? 'bg-gradient-to-r from-primary to-primary-container text-background shadow-[0_10px_30px_rgba(255,87,26,0.3)]' :
+                                                transactionMode === 'income' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-background shadow-[0_10px_30px_rgba(16,185,129,0.3)]' :
+                                                'bg-gradient-to-r from-[#f6d9fd] to-[#d3a8e9] text-[#1d0c26] shadow-[0_10px_30px_rgba(246,217,253,0.3)]'
+                                            }`}
                                         >
-                                            Add Expense
+                                            {transactionMode === 'expense' ? 'Add Expense' : transactionMode === 'income' ? 'Add Income' : 'Add Savings'}
                                         </button>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* EXPENSE TABLE */}
+                            {/* RECENT ACTIVITY TABLE */}
                             <div className="glass-card rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-2xl overflow-hidden">
-                                <div className="p-6 bg-surface-container-high flex justify-between items-center border-b border-outline-variant/10">
+                                <div className="p-6 bg-surface-container-high flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-outline-variant/10">
                                     <h3 className="font-headline text-xl font-bold text-secondary flex items-center gap-3">
                                         <span className="material-symbols-outlined text-primary">receipt_long</span>
                                         Recent Activity
                                     </h3>
-                                    <span className="px-3 py-1 rounded-full bg-primary-container/20 text-primary text-[10px] font-bold uppercase tracking-widest">
-                                        Live View
-                                    </span>
+                                    <div className="flex bg-[#180720]/80 rounded-full border border-outline-variant/20 overflow-hidden">
+                                        {['All', 'Expense', 'Income', 'Saving'].map(f => (
+                                            <button 
+                                                key={f}
+                                                onClick={() => setActivityFilter(f)}
+                                                className={`px-3 md:px-4 py-1.5 min-w-[60px] text-[10px] md:text-xs font-bold uppercase tracking-widest transition-colors ${activityFilter === f ? 'bg-primary text-background' : 'text-on-surface-variant hover:bg-surface-bright/20'}`}
+                                            >
+                                                {f}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {/* Desktop table */}
@@ -390,70 +475,114 @@ const FinanceTracker = () => {
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="bg-surface-container text-on-surface-variant text-[11px] uppercase tracking-widest font-bold">
-                                                <th className="px-6 py-4">Date</th>
-                                                <th className="px-6 py-4">Category</th>
-                                                <th className="px-6 py-4">Description</th>
+                                                <th className="px-6 py-4 min-w-[120px]">Date</th>
+                                                <th className="px-6 py-4">Transaction</th>
+                                                <th className="px-6 py-4 text-center">Category</th>
                                                 <th className="px-6 py-4 text-right">Amount</th>
-                                                <th className="px-6 py-4 text-center">Type</th>
+                                                <th className="px-6 py-4 text-center">Payment</th>
                                                 <th className="px-6 py-4 text-right"></th>
                                             </tr>
                                         </thead>
                                         <tbody className="text-sm">
-                                            {expenses.map(exp => (
-                                                <tr key={exp.id} className={`border-b border-outline-variant/5 hover:bg-surface-bright/50 transition-colors ${exp.amount > 500 ? 'border-l-2 border-tertiary/40' : ''}`}>
-                                                    <td className="px-6 py-5 text-on-surface-variant">{fmtDate(exp.date)}</td>
-                                                    <td className="px-6 py-5">
-                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${catColor(exp.category).bg} ${catColor(exp.category).text}`}>
-                                                            {exp.category}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-5 font-semibold text-white">{exp.description}</td>
-                                                    <td className={`px-6 py-5 text-right font-bold ${exp.amount > 500 ? 'text-tertiary' : 'text-on-surface'}`}>
-                                                        {fmtAmt(exp.amount)}
-                                                    </td>
-                                                    <td className="px-6 py-5 text-center">
-                                                        <span className="flex items-center justify-center gap-1.5 text-on-surface-variant text-xs">
-                                                            <span className="material-symbols-outlined text-sm">{TYPE_ICON[exp.type] || 'payments'}</span>
-                                                            {exp.type}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-5 text-right">
-                                                        <button
-                                                            onClick={() => handleDelete(exp.id)}
-                                                            className="material-symbols-outlined text-outline/30 hover:text-error transition-colors text-sm"
-                                                        >delete</button>
-                                                    </td>
+                                            {displayedTransactions.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="6" className="px-6 py-8 text-center text-on-surface-variant italic">No recent transactions matching filter.</td>
                                                 </tr>
-                                            ))}
+                                            ) : (
+                                                displayedTransactions.slice(0, 10).map(txn => {
+                                                    const isHigh = txn.amount > 500;
+                                                    const colorClass = txn.txnType === 'Expense' ? 'text-primary' : txn.txnType === 'Income' ? 'text-emerald-400' : 'text-[#f6d9fd]';
+                                                    const bgClass = txn.txnType === 'Expense' ? 'bg-primary/10' : txn.txnType === 'Income' ? 'bg-emerald-500/10' : 'bg-[#f6d9fd]/10';
+                                                    const icon = txn.txnType === 'Expense' ? 'south_east' : txn.txnType === 'Income' ? 'north_east' : 'savings';
+                                                    
+                                                    return (
+                                                    <tr key={`${txn.txnType}-${txn.id}`} className={`border-b border-outline-variant/5 hover:bg-surface-bright/50 transition-colors ${isHigh && txn.txnType === 'Expense' ? 'border-l-2 border-tertiary/40' : ''}`}>
+                                                        <td className="px-6 py-5 text-on-surface-variant">{fmtDate(txn.date)}</td>
+                                                        <td className="px-6 py-5">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className={`material-symbols-outlined text-[1rem] p-1.5 rounded-full ${colorClass} ${bgClass}`}>{icon}</span>
+                                                                <span className="font-semibold text-white">{txn.description}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-5 text-center">
+                                                            {txn.txnType === 'Expense' ? (
+                                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${catColor(txn.category).bg} ${catColor(txn.category).text}`}>
+                                                                    {txn.category}
+                                                                </span>
+                                                            ) : (
+                                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-surface-container-highest/50 text-on-surface-variant/80`}>
+                                                                    {txn.txnType}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className={`px-6 py-5 text-right font-bold ${isHigh && txn.txnType === 'Expense' ? 'text-tertiary' : colorClass}`}>
+                                                            {txn.txnType === 'Expense' ? '-' : '+'}{fmtAmt(txn.amount)}
+                                                        </td>
+                                                        <td className="px-6 py-5 text-center">
+                                                            {txn.txnType === 'Expense' ? (
+                                                                <span className="flex items-center justify-center gap-1.5 text-on-surface-variant text-xs">
+                                                                    <span className="material-symbols-outlined text-sm">{TYPE_ICON[txn.type] || 'payments'}</span>
+                                                                    {txn.type}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-on-surface-variant/50 text-xs">-</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-6 py-5 text-right">
+                                                            <button
+                                                                onClick={() => handleDelete(txn.id, txn.txnType)}
+                                                                className="material-symbols-outlined text-outline/30 hover:text-error transition-colors text-sm"
+                                                            >delete</button>
+                                                        </td>
+                                                    </tr>
+                                                )})
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
 
                                 {/* Mobile cards */}
                                 <div className="md:hidden divide-y divide-outline-variant/10">
-                                    {expenses.map(exp => (
-                                        <div key={exp.id} className="p-4 flex items-center justify-between hover:bg-surface-bright/30 transition-colors">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${catColor(exp.category).bg} ${catColor(exp.category).text}`}>
-                                                        {exp.category}
-                                                    </span>
-                                                    <span className="text-[10px] text-on-surface-variant">{fmtDate(exp.date)}</span>
+                                    {displayedTransactions.length === 0 ? (
+                                        <div className="p-8 text-center text-on-surface-variant italic text-sm">No recent transactions matching filter.</div>
+                                    ) : (
+                                        displayedTransactions.slice(0, 10).map(txn => {
+                                            const isHigh = txn.amount > 500;
+                                            const colorClass = txn.txnType === 'Expense' ? 'text-primary' : txn.txnType === 'Income' ? 'text-emerald-400' : 'text-[#f6d9fd]';
+                                            const bgClass = txn.txnType === 'Expense' ? 'bg-primary/10' : txn.txnType === 'Income' ? 'bg-emerald-500/10' : 'bg-[#f6d9fd]/10';
+
+                                            return (
+                                            <div key={`${txn.txnType}-${txn.id}`} className="p-5 flex items-center justify-between hover:bg-surface-bright/30 transition-colors">
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-2">
+                                                        {txn.txnType === 'Expense' ? (
+                                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${catColor(txn.category).bg} ${catColor(txn.category).text}`}>
+                                                                {txn.category}
+                                                            </span>
+                                                        ) : (
+                                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${colorClass} ${bgClass}`}>
+                                                                {txn.txnType}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-[10px] text-on-surface-variant opacity-80">{fmtDate(txn.date)}</span>
+                                                    </div>
+                                                    <p className="text-sm font-bold text-white">{txn.description}</p>
+                                                    {txn.txnType === 'Expense' && (
+                                                        <span className="flex items-center gap-1 text-xs text-on-surface-variant/80">
+                                                            <span className="material-symbols-outlined text-xs">{TYPE_ICON[txn.type] || 'payments'}</span>
+                                                            {txn.type}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <p className="text-sm font-semibold text-white">{exp.description}</p>
-                                                <span className="flex items-center gap-1 text-xs text-on-surface-variant">
-                                                    <span className="material-symbols-outlined text-xs">{TYPE_ICON[exp.type] || 'payments'}</span>
-                                                    {exp.type}
-                                                </span>
+                                                <div className="flex flex-col items-end justify-between h-full space-y-3">
+                                                    <span className={`font-black tracking-wider text-base font-headline ${isHigh && txn.txnType === 'Expense' ? 'text-tertiary' : colorClass}`}>
+                                                        {txn.txnType === 'Expense' ? '-' : '+'}{fmtAmt(txn.amount)}
+                                                    </span>
+                                                    <button onClick={() => handleDelete(txn.id, txn.txnType)} className="material-symbols-outlined text-outline/30 hover:text-error transition-colors text-sm">delete</button>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className={`font-bold text-lg font-headline ${exp.amount > 500 ? 'text-tertiary' : 'text-on-surface'}`}>
-                                                    {fmtAmt(exp.amount)}
-                                                </span>
-                                                <button onClick={() => handleDelete(exp.id)} className="material-symbols-outlined text-outline/30 hover:text-error transition-colors">delete</button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        )})
+                                    )}
                                 </div>
                             </div>
 

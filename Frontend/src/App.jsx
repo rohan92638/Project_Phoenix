@@ -14,14 +14,17 @@ import RulesDiscipline from './pages/RulesDiscipline';
 import Analysis from './pages/Analysis';
 import Test from './pages/Test';
 import CourseDetail from './pages/CourseDetail';
+import FinanceHistory from './pages/FinanceHistory';
+import { FinanceProvider } from './context/FinanceContext';
 
 //  IMPORT THIS
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
     return (
-        <Router>
-            <Routes>
+        <FinanceProvider>
+            <Router>
+                <Routes>
 
                     {/*  Public Routes */}
                     <Route path="/" element={<Home />} />
@@ -110,8 +113,35 @@ function App() {
                         }
                     />
 
+                    {/* Finance History Routes */}
+                    <Route
+                        path="/expenses-history"
+                        element={
+                            <ProtectedRoute>
+                                <FinanceHistory type="expense" />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/income-history"
+                        element={
+                            <ProtectedRoute>
+                                <FinanceHistory type="income" />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/savings-history"
+                        element={
+                            <ProtectedRoute>
+                                <FinanceHistory type="savings" />
+                            </ProtectedRoute>
+                        }
+                    />
+
                 </Routes>
-        </Router>
+            </Router>
+        </FinanceProvider>
     );
 }
 
