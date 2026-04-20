@@ -74,3 +74,6 @@ export const createTransaction = (data) => {
 export const deleteTransactionAPI = (id) => {
     return apiRequest(`/api/finance/transactions/${id}/`, "DELETE");
 };
+export const predictTransactionCategory = (desc) => {
+    return apiRequest(`/api/finance/predict-category/?desc=${encodeURIComponent(desc)}`);
+};

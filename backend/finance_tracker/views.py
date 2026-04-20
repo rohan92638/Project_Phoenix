@@ -1,10 +1,11 @@
 from rest_framework import viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from .models import Transaction
 from .serializers import TransactionSerializer
+from .ml.predict import predict_category
 
 class TransactionViewSet(viewsets.ModelViewSet):
     """
@@ -45,3 +46,20 @@ class TransactionViewSet(viewsets.ModelViewSet):
             "savings": savings,
             "saving_ratio": saving_ratio
         })
+
+# =========================
+# 🔥 AI API (ADD HERE)
+# =========================
+
+@api_view(['GET'])
+def predict_category_api(request):
+    desc = request.GET.get('desc', '')
+
+    if not desc:
+        return Response({"error": "Description required"})
+
+    category = predict_category(desc)
+
+    return Response({
+        "predicted_category": category
+    })

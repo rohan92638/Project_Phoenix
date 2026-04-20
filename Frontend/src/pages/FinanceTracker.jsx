@@ -1,6 +1,7 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FinanceContext } from '../context/FinanceContext';
+import { predictTransactionCategory } from '../services/api';
 
 const CATEGORY_COLORS = {
     'Food & Dining': { bg: 'bg-primary/10', text: 'text-primary' },
@@ -52,6 +53,38 @@ const FinanceTracker = () => {
     const [formDesc, setFormDesc] = useState('');
     const [formType, setFormType] = useState('Card');
     const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+    const [isPredictingCategory, setIsPredictingCategory] = useState(false);
+
+    useEffect(() => {
+        if (!formDesc.trim() || formDesc.length < 3) return;
+
+        const delayDebounceFn = setTimeout(async () => {
+            setIsPredictingCategory(true);
+            try {
+                const res = await predictTransactionCategory(formDesc);
+                if (res.predicted_category) {
+                    const catLower = res.predicted_category.toLowerCase();
+                    if (catLower === 'income') {
+                        setTransactionMode('income');
+                    } else if (catLower === 'saving' || catLower === 'savings') {
+                        setTransactionMode('savings');
+                    } else {
+                        setTransactionMode('expense');
+                        const validCategory = Object.keys(CATEGORY_COLORS).find(c => c.toLowerCase() === catLower);
+                        if (validCategory) {
+                            setFormCategory(validCategory);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("AI Prediction failed", err);
+            } finally {
+                setIsPredictingCategory(false);
+            }
+        }, 800);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [formDesc]);
 
     const handleAddTransaction = () => {
         if (!formAmount || !formDesc.trim()) return;
@@ -88,8 +121,8 @@ const FinanceTracker = () => {
         ...savingsEntries.map(s => ({ ...s, txnType: 'Saving' }))
     ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    const displayedTransactions = activityFilter === 'All' 
-        ? allTransactions 
+    const displayedTransactions = activityFilter === 'All'
+        ? allTransactions
         : allTransactions.filter(t => t.txnType === activityFilter);
 
     return (
@@ -183,23 +216,23 @@ const FinanceTracker = () => {
 
                     <div className="mt-auto pt-8">
                         <div className="flex flex-col w-full">
-                        <button 
-                            className="flex items-center justify-between w-full text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium" 
-                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                        >
-                            <div className="flex items-center gap-4">
-                                <span className="material-symbols-outlined">settings</span> Settings
-                            </div>
-                            <span className="material-symbols-outlined text-sm">{isSettingsOpen ? 'expand_less' : 'expand_more'}</span>
-                        </button>
-                        {isSettingsOpen && (
-                            <div className="flex flex-col bg-[#1d0c26]/50 py-2 pl-14 pr-6 space-y-2 border-l-2 border-[#ffb59e]/20 ml-6 mb-2">
-                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Update Profile</Link>
-                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Change Version</Link>
-                                <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Target</Link>
-                            </div>
-                        )}
-                    </div>
+                            <button
+                                className="flex items-center justify-between w-full text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium"
+                                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <span className="material-symbols-outlined">settings</span> Settings
+                                </div>
+                                <span className="material-symbols-outlined text-sm">{isSettingsOpen ? 'expand_less' : 'expand_more'}</span>
+                            </button>
+                            {isSettingsOpen && (
+                                <div className="flex flex-col bg-[#1d0c26]/50 py-2 pl-14 pr-6 space-y-2 border-l-2 border-[#ffb59e]/20 ml-6 mb-2">
+                                    <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Update Profile</Link>
+                                    <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Change Version</Link>
+                                    <Link to="#" className="text-xs text-on-surface-variant hover:text-primary transition-colors py-1">Target</Link>
+                                </div>
+                            )}
+                        </div>
                         <Link className="flex items-center gap-4 text-error/70 py-3 px-6 hover:bg-error/10 hover:text-error transition-all duration-500 font-body text-sm font-medium mt-2" to="/login">
                             <span className="material-symbols-outlined">logout</span> System Logout
                         </Link>
@@ -328,30 +361,30 @@ const FinanceTracker = () => {
                                         {transactionMode === 'expense' ? 'Quick Transaction' : transactionMode === 'income' ? 'Add Income' : 'Add Savings'}
                                     </h3>
                                     <div className="relative">
-                                        <button 
+                                        <button
                                             onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
                                             className="w-10 h-10 rounded-full bg-surface-container-highest/50 hover:bg-surface-container-highest text-on-surface flex items-center justify-center transition-colors"
                                         >
                                             <span className="material-symbols-outlined">add</span>
                                         </button>
-                                        
+
                                         {isAddMenuOpen && (
                                             <div className="absolute right-0 top-12 w-48 bg-[#1d0c26] border border-outline-variant/20 rounded-xl shadow-xl overflow-hidden z-20">
-                                                <button 
+                                                <button
                                                     onClick={() => { setTransactionMode('expense'); setIsAddMenuOpen(false); }}
                                                     className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-surface-container transition-colors ${transactionMode === 'expense' ? 'text-primary' : 'text-on-surface-variant'}`}
                                                 >
                                                     <span className="material-symbols-outlined text-sm align-middle mr-2">receipt_long</span>
                                                     Add Expense
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => { setTransactionMode('income'); setIsAddMenuOpen(false); }}
                                                     className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-surface-container transition-colors border-t border-outline-variant/10 ${transactionMode === 'income' ? 'text-emerald-400' : 'text-on-surface-variant'}`}
                                                 >
                                                     <span className="material-symbols-outlined text-sm align-middle mr-2">account_balance_wallet</span>
                                                     Add Income
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => { setTransactionMode('savings'); setIsAddMenuOpen(false); }}
                                                     className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-surface-container transition-colors border-t border-outline-variant/10 ${transactionMode === 'savings' ? 'text-[#f6d9fd]' : 'text-on-surface-variant'}`}
                                                 >
@@ -376,7 +409,10 @@ const FinanceTracker = () => {
                                     {/* Category (Expense) or Description (Income/Savings) */}
                                     {transactionMode === 'expense' ? (
                                         <div className="space-y-2">
-                                            <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Category</label>
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Category</label>
+                                                {isPredictingCategory && <span className="material-symbols-outlined text-primary text-[10px] animate-pulse">auto_awesome</span>}
+                                            </div>
                                             <select
                                                 value={formCategory} onChange={e => setFormCategory(e.target.value)}
                                                 className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 appearance-none cursor-pointer"
@@ -388,7 +424,10 @@ const FinanceTracker = () => {
                                         </div>
                                     ) : (
                                         <div className="space-y-2">
-                                            <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
+                                                {isPredictingCategory && <span className="material-symbols-outlined text-emerald-400 text-[10px] animate-pulse">auto_awesome</span>}
+                                            </div>
                                             <input
                                                 type="text" placeholder={`${transactionMode === 'income' ? 'Income' : 'Savings'} description...`}
                                                 value={formDesc} onChange={e => setFormDesc(e.target.value)}
@@ -408,7 +447,10 @@ const FinanceTracker = () => {
                                     {/* Description (Expense) */}
                                     {transactionMode === 'expense' && (
                                         <div className="space-y-2 md:col-span-2">
-                                            <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
+                                                {isPredictingCategory && <span className="material-symbols-outlined text-primary text-[10px] animate-pulse">auto_awesome</span>}
+                                            </div>
                                             <input
                                                 type="text" placeholder="Expense name..."
                                                 value={formDesc} onChange={e => setFormDesc(e.target.value)}
@@ -436,11 +478,10 @@ const FinanceTracker = () => {
                                     <div className="md:col-span-3">
                                         <button
                                             type="button" onClick={handleAddTransaction}
-                                            className={`w-full py-4 rounded-xl font-bold uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:scale-[1.01] active:scale-[0.98] transition-all ${
-                                                transactionMode === 'expense' ? 'bg-gradient-to-r from-primary to-primary-container text-background shadow-[0_10px_30px_rgba(255,87,26,0.3)]' :
-                                                transactionMode === 'income' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-background shadow-[0_10px_30px_rgba(16,185,129,0.3)]' :
-                                                'bg-gradient-to-r from-[#f6d9fd] to-[#d3a8e9] text-[#1d0c26] shadow-[0_10px_30px_rgba(246,217,253,0.3)]'
-                                            }`}
+                                            className={`w-full py-4 rounded-xl font-bold uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:scale-[1.01] active:scale-[0.98] transition-all ${transactionMode === 'expense' ? 'bg-gradient-to-r from-primary to-primary-container text-background shadow-[0_10px_30px_rgba(255,87,26,0.3)]' :
+                                                    transactionMode === 'income' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-background shadow-[0_10px_30px_rgba(16,185,129,0.3)]' :
+                                                        'bg-gradient-to-r from-[#f6d9fd] to-[#d3a8e9] text-[#1d0c26] shadow-[0_10px_30px_rgba(246,217,253,0.3)]'
+                                                }`}
                                         >
                                             {transactionMode === 'expense' ? 'Add Expense' : transactionMode === 'income' ? 'Add Income' : 'Add Savings'}
                                         </button>
@@ -457,7 +498,7 @@ const FinanceTracker = () => {
                                     </h3>
                                     <div className="flex bg-[#180720]/80 rounded-full border border-outline-variant/20 overflow-hidden">
                                         {['All', 'Expense', 'Income', 'Saving'].map(f => (
-                                            <button 
+                                            <button
                                                 key={f}
                                                 onClick={() => setActivityFilter(f)}
                                                 className={`px-3 md:px-4 py-1.5 min-w-[60px] text-[10px] md:text-xs font-bold uppercase tracking-widest transition-colors ${activityFilter === f ? 'bg-primary text-background' : 'text-on-surface-variant hover:bg-surface-bright/20'}`}
@@ -492,48 +533,49 @@ const FinanceTracker = () => {
                                                     const colorClass = txn.txnType === 'Expense' ? 'text-primary' : txn.txnType === 'Income' ? 'text-emerald-400' : 'text-[#f6d9fd]';
                                                     const bgClass = txn.txnType === 'Expense' ? 'bg-primary/10' : txn.txnType === 'Income' ? 'bg-emerald-500/10' : 'bg-[#f6d9fd]/10';
                                                     const icon = txn.txnType === 'Expense' ? 'south_east' : txn.txnType === 'Income' ? 'north_east' : 'savings';
-                                                    
+
                                                     return (
-                                                    <tr key={`${txn.txnType}-${txn.id}`} className={`border-b border-outline-variant/5 hover:bg-surface-bright/50 transition-colors ${isHigh && txn.txnType === 'Expense' ? 'border-l-2 border-tertiary/40' : ''}`}>
-                                                        <td className="px-6 py-5 text-on-surface-variant">{fmtDate(txn.date)}</td>
-                                                        <td className="px-6 py-5">
-                                                            <div className="flex items-center gap-3">
-                                                                <span className={`material-symbols-outlined text-[1rem] p-1.5 rounded-full ${colorClass} ${bgClass}`}>{icon}</span>
-                                                                <span className="font-semibold text-white">{txn.description}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-5 text-center">
-                                                            {txn.txnType === 'Expense' ? (
-                                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${catColor(txn.category).bg} ${catColor(txn.category).text}`}>
-                                                                    {txn.category}
-                                                                </span>
-                                                            ) : (
-                                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-surface-container-highest/50 text-on-surface-variant/80`}>
-                                                                    {txn.txnType}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className={`px-6 py-5 text-right font-bold ${isHigh && txn.txnType === 'Expense' ? 'text-tertiary' : colorClass}`}>
-                                                            {txn.txnType === 'Expense' ? '-' : '+'}{fmtAmt(txn.amount)}
-                                                        </td>
-                                                        <td className="px-6 py-5 text-center">
-                                                            {txn.txnType === 'Expense' ? (
-                                                                <span className="flex items-center justify-center gap-1.5 text-on-surface-variant text-xs">
-                                                                    <span className="material-symbols-outlined text-sm">{TYPE_ICON[txn.type] || 'payments'}</span>
-                                                                    {txn.type}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-on-surface-variant/50 text-xs">-</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-6 py-5 text-right">
-                                                            <button
-                                                                onClick={() => handleDelete(txn.id, txn.txnType)}
-                                                                className="material-symbols-outlined text-outline/30 hover:text-error transition-colors text-sm"
-                                                            >delete</button>
-                                                        </td>
-                                                    </tr>
-                                                )})
+                                                        <tr key={`${txn.txnType}-${txn.id}`} className={`border-b border-outline-variant/5 hover:bg-surface-bright/50 transition-colors ${isHigh && txn.txnType === 'Expense' ? 'border-l-2 border-tertiary/40' : ''}`}>
+                                                            <td className="px-6 py-5 text-on-surface-variant">{fmtDate(txn.date)}</td>
+                                                            <td className="px-6 py-5">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className={`material-symbols-outlined text-[1rem] p-1.5 rounded-full ${colorClass} ${bgClass}`}>{icon}</span>
+                                                                    <span className="font-semibold text-white">{txn.description}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-5 text-center">
+                                                                {txn.txnType === 'Expense' ? (
+                                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${catColor(txn.category).bg} ${catColor(txn.category).text}`}>
+                                                                        {txn.category}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-surface-container-highest/50 text-on-surface-variant/80`}>
+                                                                        {txn.txnType}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className={`px-6 py-5 text-right font-bold ${isHigh && txn.txnType === 'Expense' ? 'text-tertiary' : colorClass}`}>
+                                                                {txn.txnType === 'Expense' ? '-' : '+'}{fmtAmt(txn.amount)}
+                                                            </td>
+                                                            <td className="px-6 py-5 text-center">
+                                                                {txn.txnType === 'Expense' ? (
+                                                                    <span className="flex items-center justify-center gap-1.5 text-on-surface-variant text-xs">
+                                                                        <span className="material-symbols-outlined text-sm">{TYPE_ICON[txn.type] || 'payments'}</span>
+                                                                        {txn.type}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-on-surface-variant/50 text-xs">-</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-5 text-right">
+                                                                <button
+                                                                    onClick={() => handleDelete(txn.id, txn.txnType)}
+                                                                    className="material-symbols-outlined text-outline/30 hover:text-error transition-colors text-sm"
+                                                                >delete</button>
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                })
                                             )}
                                         </tbody>
                                     </table>
@@ -550,36 +592,37 @@ const FinanceTracker = () => {
                                             const bgClass = txn.txnType === 'Expense' ? 'bg-primary/10' : txn.txnType === 'Income' ? 'bg-emerald-500/10' : 'bg-[#f6d9fd]/10';
 
                                             return (
-                                            <div key={`${txn.txnType}-${txn.id}`} className="p-5 flex items-center justify-between hover:bg-surface-bright/30 transition-colors">
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center gap-2">
-                                                        {txn.txnType === 'Expense' ? (
-                                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${catColor(txn.category).bg} ${catColor(txn.category).text}`}>
-                                                                {txn.category}
-                                                            </span>
-                                                        ) : (
-                                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${colorClass} ${bgClass}`}>
-                                                                {txn.txnType}
+                                                <div key={`${txn.txnType}-${txn.id}`} className="p-5 flex items-center justify-between hover:bg-surface-bright/30 transition-colors">
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            {txn.txnType === 'Expense' ? (
+                                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${catColor(txn.category).bg} ${catColor(txn.category).text}`}>
+                                                                    {txn.category}
+                                                                </span>
+                                                            ) : (
+                                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${colorClass} ${bgClass}`}>
+                                                                    {txn.txnType}
+                                                                </span>
+                                                            )}
+                                                            <span className="text-[10px] text-on-surface-variant opacity-80">{fmtDate(txn.date)}</span>
+                                                        </div>
+                                                        <p className="text-sm font-bold text-white">{txn.description}</p>
+                                                        {txn.txnType === 'Expense' && (
+                                                            <span className="flex items-center gap-1 text-xs text-on-surface-variant/80">
+                                                                <span className="material-symbols-outlined text-xs">{TYPE_ICON[txn.type] || 'payments'}</span>
+                                                                {txn.type}
                                                             </span>
                                                         )}
-                                                        <span className="text-[10px] text-on-surface-variant opacity-80">{fmtDate(txn.date)}</span>
                                                     </div>
-                                                    <p className="text-sm font-bold text-white">{txn.description}</p>
-                                                    {txn.txnType === 'Expense' && (
-                                                        <span className="flex items-center gap-1 text-xs text-on-surface-variant/80">
-                                                            <span className="material-symbols-outlined text-xs">{TYPE_ICON[txn.type] || 'payments'}</span>
-                                                            {txn.type}
+                                                    <div className="flex flex-col items-end justify-between h-full space-y-3">
+                                                        <span className={`font-black tracking-wider text-base font-headline ${isHigh && txn.txnType === 'Expense' ? 'text-tertiary' : colorClass}`}>
+                                                            {txn.txnType === 'Expense' ? '-' : '+'}{fmtAmt(txn.amount)}
                                                         </span>
-                                                    )}
+                                                        <button onClick={() => handleDelete(txn.id, txn.txnType)} className="material-symbols-outlined text-outline/30 hover:text-error transition-colors text-sm">delete</button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-col items-end justify-between h-full space-y-3">
-                                                    <span className={`font-black tracking-wider text-base font-headline ${isHigh && txn.txnType === 'Expense' ? 'text-tertiary' : colorClass}`}>
-                                                        {txn.txnType === 'Expense' ? '-' : '+'}{fmtAmt(txn.amount)}
-                                                    </span>
-                                                    <button onClick={() => handleDelete(txn.id, txn.txnType)} className="material-symbols-outlined text-outline/30 hover:text-error transition-colors text-sm">delete</button>
-                                                </div>
-                                            </div>
-                                        )})
+                                            )
+                                        })
                                     )}
                                 </div>
                             </div>
