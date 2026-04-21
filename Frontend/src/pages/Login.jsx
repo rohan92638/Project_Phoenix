@@ -26,7 +26,7 @@ const Login = () => {
             localStorage.setItem("user",         JSON.stringify(data.user));
             localStorage.setItem("isLoggedIn",   "true");
 
-            navigate('/dashboard');
+            window.location.href = '/dashboard';
 
         } catch (err) {
             setError(err.message || "Login failed. Please try again.");

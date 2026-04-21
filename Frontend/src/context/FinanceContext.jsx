@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { getTransactions, createTransaction, deleteTransactionAPI, getFinanceSummary } from '../services/api';
+import { getTransactions, createTransaction, deleteTransactionAPI, getFinanceSummary, getSpendingInsight } from '../services/api';
 
 export const FinanceContext = createContext();
 
@@ -8,13 +8,16 @@ export const FinanceProvider = ({ children }) => {
     const [incomes, setIncomes] = useState([]);
     const [savingsEntries, setSavingsEntries] = useState([]);
     const [dashboardData, setDashboardData] = useState({ income: 0, expenses: 0, savings: 0, saving_ratio: 0 });
+    const [insightMsg, setInsightMsg] = useState('');
+    const [anomalyAlert, setAnomalyAlert] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchTransactions = async () => {
         try {
-            const [data, summaryResult] = await Promise.all([
+            const [data, summaryResult, insightResult] = await Promise.all([
                 getTransactions(),
-                getFinanceSummary()
+                getFinanceSummary(),
+                getSpendingInsight()
             ]);
             
             const parseFloatAmt = (d) => ({ ...d, amount: parseFloat(d.amount), type: d.payment_method }); 
@@ -24,6 +27,9 @@ export const FinanceProvider = ({ children }) => {
             setSavingsEntries(data.filter(t => t.transaction_type === 'SAVING').map(parseFloatAmt));
             
             setDashboardData(summaryResult);
+            if (insightResult && insightResult.insight) {
+                setInsightMsg(insightResult.insight);
+            }
         } catch (error) {
             console.error("Failed to fetch finance records:", error);
         } finally {
@@ -51,6 +57,12 @@ export const FinanceProvider = ({ children }) => {
             delete payload.id; 
             delete payload.type; 
             const res = await createTransaction(payload);
+            
+            if (res.alert) {
+                setAnomalyAlert(res.alert);
+                setTimeout(() => setAnomalyAlert(null), 5000);
+            }
+            
             setExpenses([{ ...res, amount: parseFloat(res.amount), type: res.payment_method }, ...expenses]);
             await refreshSummary();
         } catch (error) { console.error("Expense post failed:", error); }
@@ -110,6 +122,7 @@ export const FinanceProvider = ({ children }) => {
                 totalIncome: dashboardData.income, 
                 savings: dashboardData.savings, 
                 savingRatio: dashboardData.saving_ratio,
+                insightMsg, anomalyAlert,
                 isLoading
             }}
         >

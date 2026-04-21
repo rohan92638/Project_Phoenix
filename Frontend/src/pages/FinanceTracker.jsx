@@ -38,7 +38,8 @@ const FinanceTracker = () => {
         expenses, addExpense, deleteExpense,
         incomes, addIncome, deleteIncome,
         savingsEntries, addSavings, deleteSavings,
-        totalExpenses, totalIncome, savings, savingRatio
+        totalExpenses, totalIncome, savings, savingRatio,
+        insightMsg, anomalyAlert
     } = useContext(FinanceContext);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -127,6 +128,17 @@ const FinanceTracker = () => {
 
     return (
         <div className="bg-[#0B0014] text-on-surface font-body min-h-screen overflow-x-hidden selection:bg-primary-container selection:text-white">
+
+            {/* ANOMALY ALERT TOAST */}
+            {anomalyAlert && (
+                <div className="fixed top-24 right-8 z-[100] animate-bounce">
+                    <div className="bg-error-container/90 backdrop-blur border border-error p-4 rounded-xl shadow-[0_0_20px_rgba(255,0,0,0.4)] flex items-center gap-3">
+                        <span className="material-symbols-outlined text-error text-2xl">warning</span>
+                        <div className="text-error font-bold text-sm">{anomalyAlert}</div>
+                    </div>
+                </div>
+            )}
+
 
             {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
             <header className="fixed top-0 w-full z-50 bg-[#1d0c26]/60 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 h-20 shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
@@ -283,15 +295,37 @@ const FinanceTracker = () => {
                                 <p className="text-on-surface-variant text-sm">Your "Entertainment" category is at 88% of its monthly threshold.</p>
                             </div>
                         </div>
-                        {/* Red */}
-                        <div className="glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 border-tertiary-container shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl">
-                            <div className="p-3 rounded-full bg-tertiary-container/20 text-tertiary shrink-0">
-                                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>trending_up</span>
+                        {/* Dynamic Backend Insight */}
+                        <div className={`glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl ${
+                            insightMsg?.toLowerCase().includes('increased') ? 'border-tertiary-container' : 
+                            insightMsg?.toLowerCase().includes('decreased') ? 'border-emerald-500' : 'border-[#f6d9fd]'
+                        }`}>
+                            <div className={`p-3 rounded-full shrink-0 ${
+                                insightMsg?.toLowerCase().includes('increased') ? 'bg-tertiary-container/20 text-tertiary' : 
+                                insightMsg?.toLowerCase().includes('decreased') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#f6d9fd]/20 text-[#f6d9fd]'
+                            }`}>
+                                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                    {insightMsg?.toLowerCase().includes('increased') ? 'trending_up' : 
+                                     insightMsg?.toLowerCase().includes('decreased') ? 'trending_down' : 'trending_flat'}
+                                </span>
                             </div>
                             <div>
-                                <span className="text-[10px] uppercase tracking-widest text-tertiary font-bold">Caution</span>
-                                <h4 className="text-tertiary font-bold mb-1 mt-1">Spending Increased</h4>
-                                <p className="text-on-surface-variant text-sm">Weekly spending is 12% higher than your average celestial baseline.</p>
+                                <span className={`text-[10px] uppercase tracking-widest font-bold ${
+                                    insightMsg?.toLowerCase().includes('increased') ? 'text-tertiary' : 
+                                    insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
+                                }`}>
+                                    {insightMsg?.toLowerCase().includes('increased') ? 'Caution' : 'Update'}
+                                </span>
+                                <h4 className={`font-bold mb-1 mt-1 ${
+                                    insightMsg?.toLowerCase().includes('increased') ? 'text-tertiary' : 
+                                    insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
+                                }`}>
+                                    {insightMsg?.toLowerCase().includes('increased') ? 'Spending Increased' : 
+                                     insightMsg?.toLowerCase().includes('decreased') ? 'Spending Decreased' : 'Spending Steady'}
+                                </h4>
+                                <p className="text-on-surface-variant text-sm">
+                                    {insightMsg || "Loading insights..."}
+                                </p>
                             </div>
                         </div>
                     </section>

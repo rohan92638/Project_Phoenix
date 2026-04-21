@@ -22,6 +22,15 @@ export const apiRequest = async (endpoint, method = "GET", data = null) => {
 
         if (!response.ok) {
             console.log("API Error Response:", result);
+            
+            // Auto-redirect to login on Session Expiry (401)
+            if (response.status === 401) {
+                localStorage.removeItem("accessToken");
+                if (window.location.pathname !== "/login") {
+                    window.location.href = "/login";
+                }
+            }
+
             const errorMsg = result.error || result.detail || JSON.stringify(result);
             throw new Error(errorMsg || "Something went wrong");
         }
@@ -76,4 +85,7 @@ export const deleteTransactionAPI = (id) => {
 };
 export const predictTransactionCategory = (desc) => {
     return apiRequest(`/api/finance/predict-category/?desc=${encodeURIComponent(desc)}`);
+};
+export const getSpendingInsight = () => {
+    return apiRequest("/api/finance/insight/");
 };
