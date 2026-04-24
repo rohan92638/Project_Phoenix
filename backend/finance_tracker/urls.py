@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import TransactionViewSet, predict_category_api, spending_insight_api
+from .views import TransactionViewSet, predict_category_api, spending_insight_api, budget_prediction_api
 
 # Initialize the DefaultRouter natively tied to DRF
 router = DefaultRouter()
@@ -13,4 +13,5 @@ urlpatterns = [
     # 🔥 AI endpoint
     path('predict-category/', predict_category_api),
     path('insight/', spending_insight_api),
+    path('budget-predict/', budget_prediction_api),
 ]

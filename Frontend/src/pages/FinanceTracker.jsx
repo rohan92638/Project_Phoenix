@@ -39,7 +39,7 @@ const FinanceTracker = () => {
         incomes, addIncome, deleteIncome,
         savingsEntries, addSavings, deleteSavings,
         totalExpenses, totalIncome, savings, savingRatio,
-        insightMsg, anomalyAlert
+        insightMsg, anomalyAlert, budgetAlert
     } = useContext(FinanceContext);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -284,15 +284,35 @@ const FinanceTracker = () => {
                                 <p className="text-on-surface-variant text-sm">Maintained 35% savings rate over the last 30 days. Level up imminent.</p>
                             </div>
                         </div>
-                        {/* Yellow */}
-                        <div className="glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 border-secondary-container shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl">
-                            <div className="p-3 rounded-full bg-secondary-container/20 text-secondary-fixed shrink-0">
-                                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
+                        {/* Budget Prediction ML (Dynamic) */}
+                        <div className={`glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl ${
+                            budgetAlert?.includes('exceed') ? 'border-error' : 
+                            budgetAlert?.includes('within') ? 'border-emerald-500' : 'border-secondary-container'
+                        }`}>
+                            <div className={`p-3 rounded-full shrink-0 ${
+                                budgetAlert?.includes('exceed') ? 'bg-error/20 text-error' : 
+                                budgetAlert?.includes('within') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-secondary-container/20 text-secondary-fixed'
+                            }`}>
+                                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                    {budgetAlert?.includes('exceed') ? 'warning' : budgetAlert?.includes('within') ? 'check_circle' : 'hourglass_empty'}
+                                </span>
                             </div>
                             <div>
-                                <span className="text-[10px] uppercase tracking-widest text-secondary-fixed font-bold">Alert</span>
-                                <h4 className="text-secondary-fixed font-bold mb-1 mt-1">Budget Limit Approaching</h4>
-                                <p className="text-on-surface-variant text-sm">Your "Entertainment" category is at 88% of its monthly threshold.</p>
+                                <span className={`text-[10px] uppercase tracking-widest font-bold ${
+                                    budgetAlert?.includes('exceed') ? 'text-error' : 
+                                    budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
+                                }`}>
+                                    ML Budget Predictor
+                                </span>
+                                <h4 className={`font-bold mb-1 mt-1 ${
+                                    budgetAlert?.includes('exceed') ? 'text-error' : 
+                                    budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
+                                }`}>
+                                    {budgetAlert?.includes('exceed') ? 'Budget Alert' : budgetAlert?.includes('within') ? 'On Track' : 'Gathering Data'}
+                                </h4>
+                                <p className="text-on-surface-variant text-sm">
+                                    {budgetAlert || 'Need more transaction data to predict budget.'}
+                                </p>
                             </div>
                         </div>
                         {/* Dynamic Backend Insight */}
@@ -530,16 +550,21 @@ const FinanceTracker = () => {
                                         <span className="material-symbols-outlined text-primary">receipt_long</span>
                                         Recent Activity
                                     </h3>
-                                    <div className="flex bg-[#180720]/80 rounded-full border border-outline-variant/20 overflow-hidden">
-                                        {['All', 'Expense', 'Income', 'Saving'].map(f => (
-                                            <button
-                                                key={f}
-                                                onClick={() => setActivityFilter(f)}
-                                                className={`px-3 md:px-4 py-1.5 min-w-[60px] text-[10px] md:text-xs font-bold uppercase tracking-widest transition-colors ${activityFilter === f ? 'bg-primary text-background' : 'text-on-surface-variant hover:bg-surface-bright/20'}`}
-                                            >
-                                                {f}
-                                            </button>
-                                        ))}
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex bg-[#180720]/80 rounded-full border border-outline-variant/20 overflow-hidden">
+                                            {['All', 'Expense', 'Income', 'Saving'].map(f => (
+                                                <button
+                                                    key={f}
+                                                    onClick={() => setActivityFilter(f)}
+                                                    className={`px-3 md:px-4 py-1.5 min-w-[60px] text-[10px] md:text-xs font-bold uppercase tracking-widest transition-colors ${activityFilter === f ? 'bg-primary text-background' : 'text-on-surface-variant hover:bg-surface-bright/20'}`}
+                                                >
+                                                    {f}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <Link to="/all-history" className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-primary hover:text-white transition-colors flex items-center gap-1">
+                                            View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                                        </Link>
                                     </div>
                                 </div>
 

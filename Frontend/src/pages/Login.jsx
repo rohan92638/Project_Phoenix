@@ -11,6 +11,14 @@ const Login = () => {
 
     const navigate = useNavigate();
 
+    // Ensure user is logged out when visiting the login page
+    React.useEffect(() => {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        localStorage.removeItem("isLoggedIn");
+    }, []);
+
     // LOGIN FUNCTION
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -88,7 +96,7 @@ const Login = () => {
                                        type="email"
                                        value={email}
                                        onChange={(e) => setEmail(e.target.value)}
-                                       
+                                       autoComplete="email"
                                        />
                                 </div>
                             </div>
@@ -106,6 +114,7 @@ const Login = () => {
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
+                                    autoComplete="current-password"
                                     />
                                     <button className="absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant hover:text-on-surface transition-colors" type="button" onClick={() => setShowPassword(!showPassword)}>
                                         <span className="material-symbols-outlined">{showPassword ? 'visibility' : 'visibility_off'}</span>

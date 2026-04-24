@@ -2,6 +2,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Sum
 from datetime import datetime
 import numpy as np
@@ -9,6 +10,8 @@ import numpy as np
 from .models import Transaction
 from .serializers import TransactionSerializer
 from .ml.predict import predict_category
+from .ml.budget_predictor import predict_budget_exceed
+from django.db.models.functions import TruncDate
 
 
 
@@ -17,7 +20,7 @@ from .ml.predict import predict_category
 # =========================
 def detect_anomaly(user, new_amount):
     amounts = list(
-        Transaction.objects.filter(user=user)
+        Transaction.objects.filter(user=user, transaction_type='EXPENSE')
         .values_list('amount', flat=True)
     )
 
@@ -33,16 +36,30 @@ def detect_anomaly(user, new_amount):
     return float(new_amount) > mean + 2 * std
 
 
+class TransactionPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class TransactionViewSet(viewsets.ModelViewSet):
     """
     ViewSet handling all CRUD operations for the unified Finance Tracker Transaction protocol.
     """
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = TransactionPagination
 
     def get_queryset(self):
         # Extremely secure isolated querying logic
-        return Transaction.objects.filter(user=self.request.user)
+        qs = Transaction.objects.filter(user=self.request.user)
+        txn_type = self.request.query_params.get('transaction_type')
+        if txn_type:
+            if txn_type.lower() == 'savings':
+                qs = qs.filter(transaction_type='SAVING')
+            else:
+                qs = qs.filter(transaction_type=txn_type.upper())
+        return qs
 
     # def perform_create(self, serializer):
     #     # Auto-bind the transaction exclusively against the active token
@@ -50,9 +67,12 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         amount = self.request.data.get("amount")
+        txn_type = self.request.data.get("transaction_type", "EXPENSE")
 
-        # Detect anomaly before saving
-        is_anomaly = detect_anomaly(self.request.user, amount)
+        # Detect anomaly only for expenses
+        is_anomaly = False
+        if txn_type == 'EXPENSE':
+            is_anomaly = detect_anomaly(self.request.user, amount)
 
         serializer.save(user=self.request.user)
 
@@ -140,3 +160,33 @@ def spending_insight_api(request):
         msg = "No major change in spending"
 
     return Response({"insight": msg})
+
+
+
+# =========================
+# 🔥 BUDGET PREDICTION API
+# =========================
+
+@api_view(['GET'])
+def budget_prediction_api(request):
+    user = request.user
+    monthly_budget = float(request.GET.get("budget", 0))
+
+    if monthly_budget <= 0:
+        return Response({"error": "Provide valid budget"})
+
+    # Get daily expenses
+    daily_data = (
+        Transaction.objects
+        .filter(user=user, transaction_type="EXPENSE")
+        .annotate(day=TruncDate('date'))
+        .values('day')
+        .annotate(total=Sum('amount'))
+        .order_by('day')
+    )
+
+    daily_expenses = [float(d['total']) for d in daily_data]
+
+    result = predict_budget_exceed(daily_expenses, monthly_budget)
+
+    return Response(result)

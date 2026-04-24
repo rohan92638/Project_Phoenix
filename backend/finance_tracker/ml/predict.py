@@ -24,4 +24,4 @@ def predict_category(text):
         "confidence": float(confidence)
     }
 
-# Retrained to recognize Snacks
+# Retrained to recognize Snacks and Movies

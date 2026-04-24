@@ -71,8 +71,12 @@ export const getJournalFeatured = () => { return apiRequest("/api/journal/featur
 export const getJournalStats = () => { return apiRequest("/api/journal/stats/"); };
 
 // ================= FINANCE APIs =================
-export const getTransactions = () => {
-    return apiRequest("/api/finance/transactions/");
+export const getTransactions = (page = 1, type = '', pageSize = 10) => {
+    let url = `/api/finance/transactions/?page=${page}&page_size=${pageSize}`;
+    if (type && type !== 'all') {
+        url += `&transaction_type=${type}`;
+    }
+    return apiRequest(url);
 };
 export const getFinanceSummary = () => {
     return apiRequest("/api/finance/transactions/summary/");
@@ -88,4 +92,7 @@ export const predictTransactionCategory = (desc) => {
 };
 export const getSpendingInsight = () => {
     return apiRequest("/api/finance/insight/");
+};
+export const getBudgetPrediction = (budget) => {
+    return apiRequest(`/api/finance/budget-predict/?budget=${budget}`);
 };

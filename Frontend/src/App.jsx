@@ -115,6 +115,14 @@ function App() {
 
                     {/* Finance History Routes */}
                     <Route
+                        path="/all-history"
+                        element={
+                            <ProtectedRoute>
+                                <FinanceHistory type="all" />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
                         path="/expenses-history"
                         element={
                             <ProtectedRoute>
