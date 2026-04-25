@@ -5,14 +5,25 @@ import { predictTransactionCategory } from '../services/api';
 import VoiceButton from '../components/VoiceButton';
 
 const CATEGORY_COLORS = {
+    // Expenses
     'Food & Dining': { bg: 'bg-primary/10', text: 'text-primary' },
     'Rent': { bg: 'bg-secondary/10', text: 'text-secondary-fixed' },
     'Entertainment': { bg: 'bg-tertiary/10', text: 'text-tertiary' },
     'Transportation': { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
     'Shopping': { bg: 'bg-purple-500/10', text: 'text-purple-300' },
     'Utilities': { bg: 'bg-blue-500/10', text: 'text-blue-300' },
+    
+    // Income
+    'Salary': { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+    'Client': { bg: 'bg-blue-500/10', text: 'text-blue-400' },
+    'Bonus': { bg: 'bg-tertiary/10', text: 'text-tertiary' },
+    'Trading': { bg: 'bg-purple-500/10', text: 'text-purple-400' },
+
     'Other': { bg: 'bg-outline/20', text: 'text-on-surface-variant' },
 };
+
+const EXPENSE_CATEGORIES = ['Food & Dining', 'Rent', 'Entertainment', 'Transportation', 'Shopping', 'Utilities', 'Other'];
+const INCOME_CATEGORIES = ['Salary', 'Client', 'Bonus', 'Trading', 'Other'];
 
 const TYPE_ICON = { Card: 'credit_card', UPI: 'account_balance', Cash: 'payments' };
 
@@ -66,13 +77,17 @@ const FinanceTracker = () => {
                 const res = await predictTransactionCategory(formDesc);
                 if (res.predicted_category) {
                     const catLower = res.predicted_category.toLowerCase();
-                    if (catLower === 'income') {
+                    const isIncomeCat = INCOME_CATEGORIES.some(c => c.toLowerCase() === catLower);
+                    
+                    if (isIncomeCat || catLower === 'income') {
                         setTransactionMode('income');
+                        const validCategory = INCOME_CATEGORIES.find(c => c.toLowerCase() === catLower);
+                        if (validCategory) setFormCategory(validCategory);
                     } else if (catLower === 'saving' || catLower === 'savings') {
                         setTransactionMode('savings');
                     } else {
                         setTransactionMode('expense');
-                        const validCategory = Object.keys(CATEGORY_COLORS).find(c => c.toLowerCase() === catLower);
+                        const validCategory = EXPENSE_CATEGORIES.find(c => c.toLowerCase() === catLower);
                         if (validCategory) {
                             setFormCategory(validCategory);
                         }
@@ -100,7 +115,7 @@ const FinanceTracker = () => {
         if (transactionMode === 'expense') {
             addExpense({ ...entry, category: formCategory, type: formType });
         } else if (transactionMode === 'income') {
-            addIncome(entry);
+            addIncome({ ...entry, category: formCategory });
         } else if (transactionMode === 'savings') {
             addSavings(entry);
         }
@@ -118,8 +133,16 @@ const FinanceTracker = () => {
     const handleVoiceData = (data) => {
         if (data.amount) setFormAmount(data.amount);
         if (data.description) setFormDesc(data.description);
-        if (data.category && CATEGORY_COLORS[data.category]) setFormCategory(data.category);
-        setTransactionMode('expense');
+
+        if (data.transaction_type) {
+            setTransactionMode(data.transaction_type.toLowerCase());
+        } else {
+            setTransactionMode('expense');
+        }
+
+        if (data.category && CATEGORY_COLORS[data.category]) {
+            setFormCategory(data.category);
+        }
     };
 
     const catColor = (cat) => CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'];
@@ -293,29 +316,25 @@ const FinanceTracker = () => {
                             </div>
                         </div>
                         {/* Budget Prediction ML (Dynamic) */}
-                        <div className={`glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl ${
-                            budgetAlert?.includes('exceed') ? 'border-error' : 
-                            budgetAlert?.includes('within') ? 'border-emerald-500' : 'border-secondary-container'
-                        }`}>
-                            <div className={`p-3 rounded-full shrink-0 ${
-                                budgetAlert?.includes('exceed') ? 'bg-error/20 text-error' : 
-                                budgetAlert?.includes('within') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-secondary-container/20 text-secondary-fixed'
+                        <div className={`glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl ${budgetAlert?.includes('exceed') ? 'border-error' :
+                                budgetAlert?.includes('within') ? 'border-emerald-500' : 'border-secondary-container'
                             }`}>
+                            <div className={`p-3 rounded-full shrink-0 ${budgetAlert?.includes('exceed') ? 'bg-error/20 text-error' :
+                                    budgetAlert?.includes('within') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-secondary-container/20 text-secondary-fixed'
+                                }`}>
                                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
                                     {budgetAlert?.includes('exceed') ? 'warning' : budgetAlert?.includes('within') ? 'check_circle' : 'hourglass_empty'}
                                 </span>
                             </div>
                             <div>
-                                <span className={`text-[10px] uppercase tracking-widest font-bold ${
-                                    budgetAlert?.includes('exceed') ? 'text-error' : 
-                                    budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
-                                }`}>
+                                <span className={`text-[10px] uppercase tracking-widest font-bold ${budgetAlert?.includes('exceed') ? 'text-error' :
+                                        budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
+                                    }`}>
                                     ML Budget Predictor
                                 </span>
-                                <h4 className={`font-bold mb-1 mt-1 ${
-                                    budgetAlert?.includes('exceed') ? 'text-error' : 
-                                    budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
-                                }`}>
+                                <h4 className={`font-bold mb-1 mt-1 ${budgetAlert?.includes('exceed') ? 'text-error' :
+                                        budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
+                                    }`}>
                                     {budgetAlert?.includes('exceed') ? 'Budget Alert' : budgetAlert?.includes('within') ? 'On Track' : 'Gathering Data'}
                                 </h4>
                                 <p className="text-on-surface-variant text-sm">
@@ -324,32 +343,28 @@ const FinanceTracker = () => {
                             </div>
                         </div>
                         {/* Dynamic Backend Insight */}
-                        <div className={`glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl ${
-                            insightMsg?.toLowerCase().includes('increased') ? 'border-tertiary-container' : 
-                            insightMsg?.toLowerCase().includes('decreased') ? 'border-emerald-500' : 'border-[#f6d9fd]'
-                        }`}>
-                            <div className={`p-3 rounded-full shrink-0 ${
-                                insightMsg?.toLowerCase().includes('increased') ? 'bg-tertiary-container/20 text-tertiary' : 
-                                insightMsg?.toLowerCase().includes('decreased') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#f6d9fd]/20 text-[#f6d9fd]'
+                        <div className={`glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl ${insightMsg?.toLowerCase().includes('increased') ? 'border-tertiary-container' :
+                                insightMsg?.toLowerCase().includes('decreased') ? 'border-emerald-500' : 'border-[#f6d9fd]'
                             }`}>
+                            <div className={`p-3 rounded-full shrink-0 ${insightMsg?.toLowerCase().includes('increased') ? 'bg-tertiary-container/20 text-tertiary' :
+                                    insightMsg?.toLowerCase().includes('decreased') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#f6d9fd]/20 text-[#f6d9fd]'
+                                }`}>
                                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                    {insightMsg?.toLowerCase().includes('increased') ? 'trending_up' : 
-                                     insightMsg?.toLowerCase().includes('decreased') ? 'trending_down' : 'trending_flat'}
+                                    {insightMsg?.toLowerCase().includes('increased') ? 'trending_up' :
+                                        insightMsg?.toLowerCase().includes('decreased') ? 'trending_down' : 'trending_flat'}
                                 </span>
                             </div>
                             <div>
-                                <span className={`text-[10px] uppercase tracking-widest font-bold ${
-                                    insightMsg?.toLowerCase().includes('increased') ? 'text-tertiary' : 
-                                    insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
-                                }`}>
+                                <span className={`text-[10px] uppercase tracking-widest font-bold ${insightMsg?.toLowerCase().includes('increased') ? 'text-tertiary' :
+                                        insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
+                                    }`}>
                                     {insightMsg?.toLowerCase().includes('increased') ? 'Caution' : 'Update'}
                                 </span>
-                                <h4 className={`font-bold mb-1 mt-1 ${
-                                    insightMsg?.toLowerCase().includes('increased') ? 'text-tertiary' : 
-                                    insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
-                                }`}>
-                                    {insightMsg?.toLowerCase().includes('increased') ? 'Spending Increased' : 
-                                     insightMsg?.toLowerCase().includes('decreased') ? 'Spending Decreased' : 'Spending Steady'}
+                                <h4 className={`font-bold mb-1 mt-1 ${insightMsg?.toLowerCase().includes('increased') ? 'text-tertiary' :
+                                        insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
+                                    }`}>
+                                    {insightMsg?.toLowerCase().includes('increased') ? 'Spending Increased' :
+                                        insightMsg?.toLowerCase().includes('decreased') ? 'Spending Decreased' : 'Spending Steady'}
                                 </h4>
                                 <p className="text-on-surface-variant text-sm">
                                     {insightMsg || "Loading insights..."}
@@ -441,7 +456,7 @@ const FinanceTracker = () => {
                                                     Add Expense
                                                 </button>
                                                 <button
-                                                    onClick={() => { setTransactionMode('income'); setIsAddMenuOpen(false); }}
+                                                    onClick={() => { setTransactionMode('income'); setFormCategory('Salary'); setIsAddMenuOpen(false); }}
                                                     className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-surface-container transition-colors border-t border-outline-variant/10 ${transactionMode === 'income' ? 'text-emerald-400' : 'text-on-surface-variant'}`}
                                                 >
                                                     <span className="material-symbols-outlined text-sm align-middle mr-2">account_balance_wallet</span>
@@ -469,18 +484,19 @@ const FinanceTracker = () => {
                                             className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
                                         />
                                     </div>
-                                    {/* Category (Expense) or Description (Income/Savings) */}
-                                    {transactionMode === 'expense' ? (
+                                    {/* Category (Expense/Income) or Description (Savings) */}
+                                    {transactionMode === 'expense' || transactionMode === 'income' ? (
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between">
                                                 <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Category</label>
-                                                {isPredictingCategory && <span className="material-symbols-outlined text-primary text-[10px] animate-pulse">auto_awesome</span>}
+                                                {isPredictingCategory && <span className={`material-symbols-outlined text-[10px] animate-pulse ${transactionMode === 'income' ? 'text-emerald-400' : 'text-primary'}`}>auto_awesome</span>}
                                             </div>
                                             <select
                                                 value={formCategory} onChange={e => setFormCategory(e.target.value)}
                                                 className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 appearance-none cursor-pointer"
                                             >
-                                                {Object.keys(CATEGORY_COLORS).filter(c => c !== 'Other').map(c => (
+                                                {(transactionMode === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES)
+                                                    .filter(c => c !== 'Other').map(c => (
                                                     <option key={c}>{c}</option>
                                                 ))}
                                             </select>
@@ -489,10 +505,10 @@ const FinanceTracker = () => {
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between">
                                                 <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
-                                                {isPredictingCategory && <span className="material-symbols-outlined text-emerald-400 text-[10px] animate-pulse">auto_awesome</span>}
+                                                {isPredictingCategory && <span className="material-symbols-outlined text-[#f6d9fd] text-[10px] animate-pulse">auto_awesome</span>}
                                             </div>
                                             <input
-                                                type="text" placeholder={`${transactionMode === 'income' ? 'Income' : 'Savings'} description...`}
+                                                type="text" placeholder={`Savings description...`}
                                                 value={formDesc} onChange={e => setFormDesc(e.target.value)}
                                                 onKeyDown={e => e.key === 'Enter' && handleAddTransaction()}
                                                 className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
@@ -507,15 +523,15 @@ const FinanceTracker = () => {
                                             className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
                                         />
                                     </div>
-                                    {/* Description (Expense) */}
-                                    {transactionMode === 'expense' && (
+                                    {/* Description (Expense/Income) */}
+                                    {(transactionMode === 'expense' || transactionMode === 'income') && (
                                         <div className="space-y-2 md:col-span-2">
                                             <div className="flex items-center justify-between">
                                                 <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold">Description</label>
-                                                {isPredictingCategory && <span className="material-symbols-outlined text-primary text-[10px] animate-pulse">auto_awesome</span>}
+                                                {isPredictingCategory && <span className={`material-symbols-outlined text-[10px] animate-pulse ${transactionMode === 'income' ? 'text-emerald-400' : 'text-primary'}`}>auto_awesome</span>}
                                             </div>
                                             <input
-                                                type="text" placeholder="Expense name..."
+                                                type="text" placeholder={`${transactionMode === 'expense' ? 'Expense' : 'Income'} name...`}
                                                 value={formDesc} onChange={e => setFormDesc(e.target.value)}
                                                 onKeyDown={e => e.key === 'Enter' && handleAddTransaction()}
                                                 className="w-full bg-[#180720]/80 border border-outline-variant/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-on-surface p-4 transition-all outline-none"
@@ -542,8 +558,8 @@ const FinanceTracker = () => {
                                         <button
                                             type="button" onClick={handleAddTransaction}
                                             className={`w-full py-4 rounded-xl font-bold uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:scale-[1.01] active:scale-[0.98] transition-all ${transactionMode === 'expense' ? 'bg-gradient-to-r from-primary to-primary-container text-background shadow-[0_10px_30px_rgba(255,87,26,0.3)]' :
-                                                    transactionMode === 'income' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-background shadow-[0_10px_30px_rgba(16,185,129,0.3)]' :
-                                                        'bg-gradient-to-r from-[#f6d9fd] to-[#d3a8e9] text-[#1d0c26] shadow-[0_10px_30px_rgba(246,217,253,0.3)]'
+                                                transactionMode === 'income' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-background shadow-[0_10px_30px_rgba(16,185,129,0.3)]' :
+                                                    'bg-gradient-to-r from-[#f6d9fd] to-[#d3a8e9] text-[#1d0c26] shadow-[0_10px_30px_rgba(246,217,253,0.3)]'
                                                 }`}
                                         >
                                             {transactionMode === 'expense' ? 'Add Expense' : transactionMode === 'income' ? 'Add Income' : 'Add Savings'}

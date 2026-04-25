@@ -20,10 +20,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        # Enforce null overrides for Income/Savings structurally
+        # Enforce null overrides for payment_method for Income/Savings structurally
         txn_type = validated_data.get('transaction_type')
         if txn_type in ['INCOME', 'SAVING']:
-            validated_data['category'] = None
             validated_data['payment_method'] = None
             
         return super().create(validated_data)
@@ -31,7 +30,6 @@ class TransactionSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         txn_type = validated_data.get('transaction_type', instance.transaction_type)
         if txn_type in ['INCOME', 'SAVING']:
-            validated_data['category'] = None
             validated_data['payment_method'] = None
             
         return super().update(instance, validated_data)

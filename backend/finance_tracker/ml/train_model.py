@@ -18,8 +18,16 @@ X_vec = vectorizer.fit_transform(X)
 model = MultinomialNB()
 model.fit(X_vec, y)
 
+import json
+
+# Extract unique category mappings
+mapping = data.set_index('category')['transaction_type'].to_dict()
+
+with open("category_mapping.json", "w") as f:
+    json.dump(mapping, f, indent=4)
+
 # Save model + vectorizer
 joblib.dump(model, "model.pkl")
 joblib.dump(vectorizer, "vectorizer.pkl")
 
-print("Model trained and saved!")
+print("Model trained and saved with dynamic category mapping!")

@@ -13,4 +13,4 @@ from finance_tracker.models import Transaction
 txns = Transaction.objects.all()
 print(f"Total transactions in DB: {txns.count()}")
 for t in txns:
-    print(f"ID: {t.id} | User: {str(t.user)} | Type: {t.transaction_type} | Amount: {t.amount} | Date: {t.date} | Created: {t.created_at}")
+    print(f"ID: {t.id} | User: {str(t.user)} | Type: {t.transaction_type} | Category: {t.category} | Amount: {t.amount} | Desc: {t.description}")

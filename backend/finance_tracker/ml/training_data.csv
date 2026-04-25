@@ -1,35 +1,50 @@
-description,category
-netflix subscription,Entertainment
-netflix monthly,Entertainment
-spotify premium,Entertainment
-spotify music,Entertainment
-amazon prime,Entertainment
-movie,Entertainment
+description,category,transaction_type
+netflix subscription,Entertainment,EXPENSE
+netflix monthly,Entertainment,EXPENSE
+spotify premium,Entertainment,EXPENSE
+spotify music,Entertainment,EXPENSE
+amazon prime,Entertainment,EXPENSE
+movie,Entertainment,EXPENSE
 
-starbucks coffee,Food & Dining
-dominos pizza,Food & Dining
-pizza hut order,Food & Dining
-burger king meal,Food & Dining
-restaurant dinner,Food & Dining
-snacks,Food & Dining
-grocery store,Food & Dining
-chips,Food & Dining
-candy,Food & Dining
+starbucks coffee,Food & Dining,EXPENSE
+dominos pizza,Food & Dining,EXPENSE
+pizza hut order,Food & Dining,EXPENSE
+burger king meal,Food & Dining,EXPENSE
+restaurant dinner,Food & Dining,EXPENSE
+snacks,Food & Dining,EXPENSE
+grocery store,Food & Dining,EXPENSE
+chips,Food & Dining,EXPENSE
+candy,Food & Dining,EXPENSE
 
-uber ride,Transportation
-ola cab,Transportation
-petrol pump,Transportation
-fuel refill,Transportation
-bus ticket,Transportation
+uber ride,Transportation,EXPENSE
+ola cab,Transportation,EXPENSE
+petrol pump,Transportation,EXPENSE
+fuel refill,Transportation,EXPENSE
+bus ticket,Transportation,EXPENSE
 
-electricity bill,Bills
-water bill,Bills
-internet recharge,Bills
-mobile recharge,Bills
-wifi bill,Bills
+electricity bill,Bills,EXPENSE
+water bill,Bills,EXPENSE
+internet recharge,Bills,EXPENSE
+mobile recharge,Bills,EXPENSE
+wifi bill,Bills,EXPENSE
 
-salary credit,Income
-monthly salary,Income
-freelance project,Income
-client payment,Income
-bonus received,Income
+salary credit,Salary,INCOME
+monthly salary,Salary,INCOME
+got my salary,Salary,INCOME
+salary credited,Salary,INCOME
+freelance project,Client,INCOME
+client payment,Client,INCOME
+payment from client,Client,INCOME
+bonus received,Bonus,INCOME
+i got bonus,Bonus,INCOME
+annual bonus,Bonus,INCOME
+received bonus,Bonus,INCOME
+stock profit,Trading,INCOME
+crypto sell,Trading,INCOME
+trading profit,Trading,INCOME
+
+i saved money,Savings,SAVINGS
+savings account deposit,Savings,SAVINGS
+piggy bank,Savings,SAVINGS
+put money in savings,Savings,SAVINGS
+saved 5000,Savings,SAVINGS

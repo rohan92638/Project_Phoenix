@@ -11,6 +11,7 @@ from .models import Transaction
 from .serializers import TransactionSerializer
 from .ml.predict import predict_category
 from .ml.budget_predictor import predict_budget_exceed
+from .ml.voice_parser import parse_voice_text
 from django.db.models.functions import TruncDate
 
 
@@ -183,5 +184,17 @@ def budget_prediction_api(request):
     daily_expenses = [float(d['total']) for d in daily_data]
 
     result = predict_budget_exceed(daily_expenses, monthly_budget)
+
+    return Response(result)
+
+
+@api_view(['POST'])
+def parse_voice_api(request):
+    text = request.data.get("text")
+
+    if not text:
+        return Response({"error": "Text is required"}, status=400)
+
+    result = parse_voice_text(text)
 
     return Response(result)

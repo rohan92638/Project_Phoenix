@@ -1,0 +1,11 @@
+{
+    "Entertainment": "EXPENSE",
+    "Food & Dining": "EXPENSE",
+    "Transportation": "EXPENSE",
+    "Bills": "EXPENSE",
+    "Salary": "INCOME",
+    "Client": "INCOME",
+    "Bonus": "INCOME",
+    "Trading": "INCOME",
+    "Savings": "SAVINGS"
+}
