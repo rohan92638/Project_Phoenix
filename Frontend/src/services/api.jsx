@@ -22,7 +22,7 @@ export const apiRequest = async (endpoint, method = "GET", data = null) => {
 
         if (!response.ok) {
             console.log("API Error Response:", result);
-            
+
             // Auto-redirect to login on Session Expiry (401)
             if (response.status === 401) {
                 localStorage.removeItem("accessToken");
@@ -95,4 +95,8 @@ export const getSpendingInsight = () => {
 };
 export const getBudgetPrediction = (budget) => {
     return apiRequest(`/api/finance/budget-predict/?budget=${budget}`);
+};
+
+export const parseVoiceTransaction = (text) => {
+    return apiRequest("/api/finance/parse-voice/", "POST", { text });
 };

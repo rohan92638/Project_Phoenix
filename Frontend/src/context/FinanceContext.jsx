@@ -12,18 +12,25 @@ export const FinanceProvider = ({ children }) => {
     const [anomalyAlert, setAnomalyAlert] = useState(null);
     const [budgetAlert, setBudgetAlert] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [targetBudget, setTargetBudgetState] = useState(() => {
+        return parseFloat(localStorage.getItem('targetBudget')) || 20000;
+    });
+
+    const setTargetBudget = (value) => {
+        localStorage.setItem('targetBudget', value);
+        setTargetBudgetState(value);
+    };
 
     const fetchTransactions = async () => {
         try {
-            // 1. Fetch Summary first to get the dynamic salary/income
+            // 1. Fetch Summary first
             const summaryResult = await getFinanceSummary();
-            const dynamicBudget = summaryResult.income > 0 ? summaryResult.income : 20000;
 
-            // 2. Fetch the rest using the dynamic budget
+            // 2. Fetch the rest using the user's target budget
             const [dataRes, insightResult, budgetResult] = await Promise.all([
                 getTransactions(1, '', 100),
                 getSpendingInsight(),
-                getBudgetPrediction(dynamicBudget) // Dynamic budget based on salary
+                getBudgetPrediction(targetBudget)
             ]);
 
             const data = dataRes.results || dataRes;
@@ -49,13 +56,12 @@ export const FinanceProvider = ({ children }) => {
 
     const refreshSummary = async () => {
         try {
-            // Fetch summary first to get latest income
+            // Fetch summary first
             const summaryResult = await getFinanceSummary();
-            const dynamicBudget = summaryResult.income > 0 ? summaryResult.income : 20000;
 
             const [insightResult, budgetResult] = await Promise.all([
                 getSpendingInsight(),
-                getBudgetPrediction(dynamicBudget)
+                getBudgetPrediction(targetBudget)
             ]);
 
             setDashboardData(summaryResult);
@@ -78,6 +84,12 @@ export const FinanceProvider = ({ children }) => {
             setIsLoading(false);
         }
     }, []);
+
+    useEffect(() => {
+        if (!isLoading) {
+            refreshSummary();
+        }
+    }, [targetBudget]);
 
     // Mutations
     const addExpense = async (entry) => {
@@ -152,7 +164,7 @@ export const FinanceProvider = ({ children }) => {
                 savings: dashboardData.savings,
                 savingRatio: dashboardData.saving_ratio,
                 insightMsg, anomalyAlert, budgetAlert,
-                isLoading
+                isLoading, targetBudget, setTargetBudget
             }}
         >
             {children}

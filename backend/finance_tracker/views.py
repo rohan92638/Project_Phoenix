@@ -15,25 +15,27 @@ from django.db.models.functions import TruncDate
 
 
 
+from django.db.models import Avg, StdDev, Count
+
 # =========================
 # 🔥 ANOMALY DETECTION LOGIC
 # =========================
 def detect_anomaly(user, new_amount):
-    amounts = list(
-        Transaction.objects.filter(user=user, transaction_type='EXPENSE')
-        .values_list('amount', flat=True)
+    stats = Transaction.objects.filter(user=user, transaction_type='EXPENSE').aggregate(
+        mean=Avg('amount'),
+        std=StdDev('amount'),
+        count=Count('id')
     )
 
-    # Need minimum data
-    if len(amounts) < 5:
+    count = stats['count']
+    mean = stats['mean']
+    std = stats['std']
+
+    # Need minimum data and valid stats
+    if count < 5 or mean is None or std is None:
         return False
 
-    amounts = [float(a) for a in amounts]
-
-    mean = np.mean(amounts)
-    std = np.std(amounts)
-
-    return float(new_amount) > mean + 2 * std
+    return float(new_amount) > float(mean) + 2 * float(std)
 
 
 class TransactionPagination(PageNumberPagination):
@@ -66,24 +68,17 @@ class TransactionViewSet(viewsets.ModelViewSet):
     #     serializer.save(user=self.request.user)
 
     def perform_create(self, serializer):
-        amount = self.request.data.get("amount")
-        txn_type = self.request.data.get("transaction_type", "EXPENSE")
-
-        # Detect anomaly only for expenses
-        is_anomaly = False
-        if txn_type == 'EXPENSE':
-            is_anomaly = detect_anomaly(self.request.user, amount)
-
+        # Auto-bind the transaction exclusively against the active token
         serializer.save(user=self.request.user)
-
-        # Store flag temporarily
-        self._anomaly_flag = is_anomaly
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
 
+        txn_type = request.data.get("transaction_type", "EXPENSE")
+        amount = request.data.get("amount")
+
         # Attach alert if anomaly detected
-        if hasattr(self, "_anomaly_flag") and self._anomaly_flag:
+        if txn_type == 'EXPENSE' and detect_anomaly(request.user, amount):
             response.data["alert"] = "⚠️ Unusual expense detected"
 
         return response
@@ -100,7 +95,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
         expenses = float(expenses)
         manual_savings = float(manual_savings)
         
-        savings = income - expenses + manual_savings
+        savings = income - expenses - manual_savings
         
         saving_ratio = 0
         if income > 0:

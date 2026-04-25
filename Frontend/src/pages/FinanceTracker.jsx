@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FinanceContext } from '../context/FinanceContext';
 import { predictTransactionCategory } from '../services/api';
+import VoiceButton from '../components/VoiceButton';
 
 const CATEGORY_COLORS = {
     'Food & Dining': { bg: 'bg-primary/10', text: 'text-primary' },
@@ -112,6 +113,13 @@ const FinanceTracker = () => {
         if (txnType === 'Expense') deleteExpense(id);
         else if (txnType === 'Income') deleteIncome(id);
         else if (txnType === 'Saving') deleteSavings(id);
+    };
+
+    const handleVoiceData = (data) => {
+        if (data.amount) setFormAmount(data.amount);
+        if (data.description) setFormDesc(data.description);
+        if (data.category && CATEGORY_COLORS[data.category]) setFormCategory(data.category);
+        setTransactionMode('expense');
     };
 
     const catColor = (cat) => CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'];
@@ -414,7 +422,8 @@ const FinanceTracker = () => {
                                         </span>
                                         {transactionMode === 'expense' ? 'Quick Transaction' : transactionMode === 'income' ? 'Add Income' : 'Add Savings'}
                                     </h3>
-                                    <div className="relative">
+                                    <div className="relative flex items-center gap-3">
+                                        <VoiceButton onVoiceProcessed={handleVoiceData} />
                                         <button
                                             onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
                                             className="w-10 h-10 rounded-full bg-surface-container-highest/50 hover:bg-surface-container-highest text-on-surface flex items-center justify-center transition-colors"
