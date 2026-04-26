@@ -12,7 +12,7 @@ from .models import Transaction
 from .serializers import TransactionSerializer
 from .ml.predict import predict_category
 from .ml.budget_predictor import predict_budget_exceed
-from .ml.voice_parser import parse_voice_text
+from .ml.voice_parser import parse_voice_text, extract_amount
 from .ml.clustering import get_expense_persona, get_income_persona
 from django.db.models.functions import TruncDate
 
@@ -119,10 +119,12 @@ def predict_category_api(request):
         return Response({"error": "Description required"})
 
     result = predict_category(desc)
+    amount = extract_amount(desc)
 
     return Response({
         "predicted_category": result["category"],
-        "confidence": result["confidence"]
+        "confidence": result["confidence"],
+        "amount": amount
     })
 
 

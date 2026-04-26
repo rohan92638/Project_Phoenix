@@ -3,9 +3,12 @@
     "Food & Dining": "EXPENSE",
     "Transportation": "EXPENSE",
     "Bills": "EXPENSE",
+    "Rent": "EXPENSE",
+    "Shopping": "EXPENSE",
+    "Health": "EXPENSE",
     "Salary": "INCOME",
     "Client": "INCOME",
     "Bonus": "INCOME",
     "Trading": "INCOME",
-    "Savings": "SAVING"
+    "Savings": "SAVINGS"
 }

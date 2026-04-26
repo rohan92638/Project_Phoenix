@@ -4,47 +4,110 @@ netflix monthly,Entertainment,EXPENSE
 spotify premium,Entertainment,EXPENSE
 spotify music,Entertainment,EXPENSE
 amazon prime,Entertainment,EXPENSE
-movie,Entertainment,EXPENSE
-
+movie ticket,Entertainment,EXPENSE
+cinema hall,Entertainment,EXPENSE
+theatre tickets,Entertainment,EXPENSE
+gaming recharge,Entertainment,EXPENSE
+hotstar subscription,Entertainment,EXPENSE
+concert tickets,Entertainment,EXPENSE
+ott subscription,Entertainment,EXPENSE
 starbucks coffee,Food & Dining,EXPENSE
 dominos pizza,Food & Dining,EXPENSE
 pizza hut order,Food & Dining,EXPENSE
+i eat pizza,Food & Dining,EXPENSE
+ate pizza,Food & Dining,EXPENSE
 burger king meal,Food & Dining,EXPENSE
 restaurant dinner,Food & Dining,EXPENSE
-snacks,Food & Dining,EXPENSE
+snacks bought,Food & Dining,EXPENSE
 grocery store,Food & Dining,EXPENSE
-chips,Food & Dining,EXPENSE
-candy,Food & Dining,EXPENSE
-
+chips and candy,Food & Dining,EXPENSE
+zomato order,Food & Dining,EXPENSE
+swiggy food delivery,Food & Dining,EXPENSE
+lunch at cafe,Food & Dining,EXPENSE
+dinner with friends,Food & Dining,EXPENSE
+breakfast at hotel,Food & Dining,EXPENSE
+ordered food online,Food & Dining,EXPENSE
+blinkit groceries,Food & Dining,EXPENSE
+bigbasket order,Food & Dining,EXPENSE
 uber ride,Transportation,EXPENSE
 ola cab,Transportation,EXPENSE
 petrol pump,Transportation,EXPENSE
 fuel refill,Transportation,EXPENSE
 bus ticket,Transportation,EXPENSE
-
+travelling in dubai,Transportation,EXPENSE
+travelling to dubai,Transportation,EXPENSE
+dubai trip expense,Transportation,EXPENSE
+flight ticket booked,Transportation,EXPENSE
+airline booking,Transportation,EXPENSE
+hotel booking dubai,Transportation,EXPENSE
+trip to goa,Transportation,EXPENSE
+vacation expense,Transportation,EXPENSE
+travel cost,Transportation,EXPENSE
+travel expense,Transportation,EXPENSE
+going on a trip,Transportation,EXPENSE
+travelling costly,Transportation,EXPENSE
+metro card recharge,Transportation,EXPENSE
+rapido ride,Transportation,EXPENSE
+cab to airport,Transportation,EXPENSE
+train ticket,Transportation,EXPENSE
+international travel,Transportation,EXPENSE
+holiday booking,Transportation,EXPENSE
+resort booking,Transportation,EXPENSE
+tour package,Transportation,EXPENSE
 electricity bill,Bills,EXPENSE
 water bill,Bills,EXPENSE
 internet recharge,Bills,EXPENSE
 mobile recharge,Bills,EXPENSE
 wifi bill,Bills,EXPENSE
-
+phone bill paid,Bills,EXPENSE
+gas bill,Bills,EXPENSE
+broadband bill,Bills,EXPENSE
+house rent paid,Rent,EXPENSE
+monthly rent,Rent,EXPENSE
+paid rent,Rent,EXPENSE
+pg rent,Rent,EXPENSE
+apartment rent,Rent,EXPENSE
+flat rent,Rent,EXPENSE
+amazon shopping,Shopping,EXPENSE
+flipkart order,Shopping,EXPENSE
+myntra clothes,Shopping,EXPENSE
+bought new shoes,Shopping,EXPENSE
+purchased clothes,Shopping,EXPENSE
+mall shopping,Shopping,EXPENSE
+online purchase,Shopping,EXPENSE
+meesho order,Shopping,EXPENSE
+gym membership,Health,EXPENSE
+doctor consultation,Health,EXPENSE
+medicine purchase,Health,EXPENSE
+pharmacy bill,Health,EXPENSE
+hospital bill,Health,EXPENSE
+clinic visit,Health,EXPENSE
 salary credit,Salary,INCOME
 monthly salary,Salary,INCOME
 got my salary,Salary,INCOME
 salary credited,Salary,INCOME
+i got salary,Salary,INCOME
+received my salary,Salary,INCOME
+salary received,Salary,INCOME
+salary of this month,Salary,INCOME
 freelance project,Client,INCOME
 client payment,Client,INCOME
 payment from client,Client,INCOME
+project payment received,Client,INCOME
 bonus received,Bonus,INCOME
 i got bonus,Bonus,INCOME
 annual bonus,Bonus,INCOME
 received bonus,Bonus,INCOME
+performance bonus,Bonus,INCOME
 stock profit,Trading,INCOME
 crypto sell,Trading,INCOME
 trading profit,Trading,INCOME
-
-i saved money,Savings,SAVINGS
+investment returns,Trading,INCOME
+i saved money intentionally,Savings,SAVINGS
 savings account deposit,Savings,SAVINGS
-piggy bank,Savings,SAVINGS
+piggy bank added,Savings,SAVINGS
 put money in savings,Savings,SAVINGS
-saved 5000,Savings,SAVINGS
+saved for future,Savings,SAVINGS
+emergency fund deposit,Savings,SAVINGS
+fd deposit,Savings,SAVINGS
+recurring deposit added,Savings,SAVINGS

@@ -135,6 +135,9 @@ const FinanceTracker = () => {
                         }
                     }
                 }
+                if (res.amount) {
+                    setFormAmount(res.amount);
+                }
             } catch (err) {
                 console.error("AI Prediction failed", err);
             } finally {
