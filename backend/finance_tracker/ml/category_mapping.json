@@ -7,5 +7,5 @@
     "Client": "INCOME",
     "Bonus": "INCOME",
     "Trading": "INCOME",
-    "Savings": "SAVINGS"
+    "Savings": "SAVING"
 }

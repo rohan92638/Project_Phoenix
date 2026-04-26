@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import TransactionViewSet, predict_category_api, spending_insight_api, budget_prediction_api, parse_voice_api
+from .views import TransactionViewSet, predict_category_api, spending_insight_api, budget_prediction_api, parse_voice_api, financial_persona_api
 
 # Initialize the DefaultRouter natively tied to DRF
 router = DefaultRouter()
@@ -15,4 +15,5 @@ urlpatterns = [
     path('insight/', spending_insight_api),
     path('budget-predict/', budget_prediction_api),
     path('parse-voice/', parse_voice_api),
+    path('persona/', financial_persona_api),
 ]

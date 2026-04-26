@@ -1,10 +1,11 @@
 from rest_framework import viewsets
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Sum
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import numpy as np
 
 from .models import Transaction
@@ -12,6 +13,7 @@ from .serializers import TransactionSerializer
 from .ml.predict import predict_category
 from .ml.budget_predictor import predict_budget_exceed
 from .ml.voice_parser import parse_voice_text
+from .ml.clustering import get_expense_persona, get_income_persona
 from django.db.models.functions import TruncDate
 
 
@@ -64,12 +66,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(transaction_type=txn_type.upper())
         return qs
 
-    # def perform_create(self, serializer):
-    #     # Auto-bind the transaction exclusively against the active token
-    #     serializer.save(user=self.request.user)
-
     def perform_create(self, serializer):
-        # Auto-bind the transaction exclusively against the active token
         serializer.save(user=self.request.user)
 
     def create(self, request, *args, **kwargs):
@@ -114,6 +111,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 # =========================
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def predict_category_api(request):
     desc = request.GET.get('desc', '')
 
@@ -134,14 +132,16 @@ def predict_category_api(request):
 # 🔥 SPENDING INSIGHT API
 # =========================
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def spending_insight_api(request):
     user = request.user
     now = datetime.now()
+    last_month_date = now - relativedelta(months=1)
 
     qs = Transaction.objects.filter(user=user)
 
-    this_month = qs.filter(date__month=now.month).aggregate(total=Sum('amount'))['total'] or 0
-    last_month = qs.filter(date__month=now.month - 1).aggregate(total=Sum('amount'))['total'] or 0
+    this_month = qs.filter(date__month=now.month, date__year=now.year).aggregate(total=Sum('amount'))['total'] or 0
+    last_month = qs.filter(date__month=last_month_date.month, date__year=last_month_date.year).aggregate(total=Sum('amount'))['total'] or 0
 
     this_month = float(this_month)
     last_month = float(last_month)
@@ -164,6 +164,7 @@ def spending_insight_api(request):
 # =========================
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def budget_prediction_api(request):
     user = request.user
     monthly_budget = float(request.GET.get("budget", 0))
@@ -189,6 +190,7 @@ def budget_prediction_api(request):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def parse_voice_api(request):
     text = request.data.get("text")
 
@@ -198,3 +200,26 @@ def parse_voice_api(request):
     result = parse_voice_text(text)
 
     return Response(result)
+
+
+# =========================
+# 🔥 FINANCIAL PERSONA API
+# =========================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def financial_persona_api(request):
+    user = request.user
+
+    # Get transactions
+    expenses = Transaction.objects.filter(user=user, transaction_type='EXPENSE')
+    incomes = Transaction.objects.filter(user=user, transaction_type='INCOME')
+
+    # ML predictions
+    expense_persona = get_expense_persona(expenses)
+    income_persona = get_income_persona(incomes)
+
+    return Response({
+        "expense_persona": expense_persona,
+        "income_persona": income_persona
+    })

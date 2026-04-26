@@ -11,6 +11,7 @@ export const FinanceProvider = ({ children }) => {
     const [insightMsg, setInsightMsg] = useState(null);
     const [anomalyAlert, setAnomalyAlert] = useState(null);
     const [budgetAlert, setBudgetAlert] = useState(null);
+    const [mutationError, setMutationError] = useState(null); // user-visible error
     const [isLoading, setIsLoading] = useState(true);
     const [targetBudget, setTargetBudgetState] = useState(() => {
         return parseFloat(localStorage.getItem('targetBudget')) || 20000;
@@ -19,6 +20,11 @@ export const FinanceProvider = ({ children }) => {
     const setTargetBudget = (value) => {
         localStorage.setItem('targetBudget', value);
         setTargetBudgetState(value);
+    };
+
+    const showError = (msg) => {
+        setMutationError(msg);
+        setTimeout(() => setMutationError(null), 4000);
     };
 
     const fetchTransactions = async () => {
@@ -106,7 +112,10 @@ export const FinanceProvider = ({ children }) => {
 
             setExpenses([{ ...res, amount: parseFloat(res.amount), type: res.payment_method }, ...expenses]);
             await refreshSummary();
-        } catch (error) { console.error("Expense post failed:", error); }
+        } catch (error) {
+            console.error("Expense post failed:", error);
+            showError(error.message || 'Failed to add expense. Please try again.');
+        }
     };
 
     const addIncome = async (entry) => {
@@ -116,7 +125,10 @@ export const FinanceProvider = ({ children }) => {
             const res = await createTransaction(payload);
             setIncomes([{ ...res, amount: parseFloat(res.amount) }, ...incomes]);
             await refreshSummary();
-        } catch (error) { console.error("Income post failed:", error); }
+        } catch (error) {
+            console.error("Income post failed:", error);
+            showError(error.message || 'Failed to add income. Please try again.');
+        }
     };
 
     const addSavings = async (entry) => {
@@ -126,7 +138,10 @@ export const FinanceProvider = ({ children }) => {
             const res = await createTransaction(payload);
             setSavingsEntries([{ ...res, amount: parseFloat(res.amount) }, ...savingsEntries]);
             await refreshSummary();
-        } catch (error) { console.error("Savings post failed:", error); }
+        } catch (error) {
+            console.error("Savings post failed:", error);
+            showError(error.message || 'Failed to add savings. Please try again.');
+        }
     };
 
     const deleteExpense = async (id) => {
@@ -134,7 +149,10 @@ export const FinanceProvider = ({ children }) => {
             await deleteTransactionAPI(id);
             setExpenses(expenses.filter(e => e.id !== id));
             await refreshSummary();
-        } catch (e) { console.error(e) }
+        } catch (e) {
+            console.error(e);
+            showError('Failed to delete expense.');
+        }
     };
 
     const deleteIncome = async (id) => {
@@ -142,7 +160,10 @@ export const FinanceProvider = ({ children }) => {
             await deleteTransactionAPI(id);
             setIncomes(incomes.filter(e => e.id !== id));
             await refreshSummary();
-        } catch (e) { console.error(e) }
+        } catch (e) {
+            console.error(e);
+            showError('Failed to delete income.');
+        }
     };
 
     const deleteSavings = async (id) => {
@@ -150,7 +171,10 @@ export const FinanceProvider = ({ children }) => {
             await deleteTransactionAPI(id);
             setSavingsEntries(savingsEntries.filter(e => e.id !== id));
             await refreshSummary();
-        } catch (e) { console.error(e) }
+        } catch (e) {
+            console.error(e);
+            showError('Failed to delete savings.');
+        }
     };
 
     return (
@@ -163,7 +187,7 @@ export const FinanceProvider = ({ children }) => {
                 totalIncome: dashboardData.income,
                 savings: dashboardData.savings,
                 savingRatio: dashboardData.saving_ratio,
-                insightMsg, anomalyAlert, budgetAlert,
+                insightMsg, anomalyAlert, budgetAlert, mutationError,
                 isLoading, targetBudget, setTargetBudget
             }}
         >

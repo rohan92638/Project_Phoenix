@@ -1,1 +1,35 @@
-./Frontend/node_modules
+# ── Python / Django ───────────────────────────────────────────────────────────
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+db.sqlite3
+*.log
+.env
+.env.*
+
+# ── ML / Data ─────────────────────────────────────────────────────────────────
+# Keep .pkl model files (small, needed by app)
+# Exclude large wheel files
+*.whl
+
+# ── Node / React ──────────────────────────────────────────────────────────────
+Frontend/node_modules/
+Frontend/.env
+Frontend/.env.*
+Frontend/dist/
+Frontend/build/
+
+# ── OS & Editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

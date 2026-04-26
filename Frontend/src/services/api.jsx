@@ -100,3 +100,7 @@ export const getBudgetPrediction = (budget) => {
 export const parseVoiceTransaction = (text) => {
     return apiRequest("/api/finance/parse-voice/", "POST", { text });
 };
+
+export const getSpendingPersona = () => {
+    return apiRequest("/api/finance/persona/");
+};

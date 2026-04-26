@@ -1,8 +1,9 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FinanceContext } from '../context/FinanceContext';
 import { predictTransactionCategory } from '../services/api';
-import VoiceButton from '../components/VoiceButton';
+import VoiceButton from '../components/voiceButton';
+import SpendingPersona from '../components/spendingPersona';
 
 const CATEGORY_COLORS = {
     // Expenses
@@ -12,7 +13,7 @@ const CATEGORY_COLORS = {
     'Transportation': { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
     'Shopping': { bg: 'bg-purple-500/10', text: 'text-purple-300' },
     'Utilities': { bg: 'bg-blue-500/10', text: 'text-blue-300' },
-    
+
     // Income
     'Salary': { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
     'Client': { bg: 'bg-blue-500/10', text: 'text-blue-400' },
@@ -27,14 +28,12 @@ const INCOME_CATEGORIES = ['Salary', 'Client', 'Bonus', 'Trading', 'Other'];
 
 const TYPE_ICON = { Card: 'credit_card', UPI: 'account_balance', Cash: 'payments' };
 
-const WEEKLY_BARS = [
-    { day: 'Mon', h: 40, amt: '₹1.2k' },
-    { day: 'Tue', h: 65, amt: '₹2.1k' },
-    { day: 'Wed', h: 50, amt: '₹1.6k' },
-    { day: 'Thu', h: 85, amt: '₹3.4k' },
-    { day: 'Fri', h: 35, amt: '₹1.0k' },
-    { day: 'Sat', h: 75, amt: '₹2.8k' },
-    { day: 'Sun', h: 55, amt: '₹1.8k' },
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Bar chart colors per category (up to 6 shown)
+const CAT_COLORS = [
+    'bg-primary', 'bg-secondary-container', 'bg-tertiary',
+    'bg-emerald-500', 'bg-purple-500', 'bg-blue-400'
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -43,6 +42,7 @@ const fmtDate = (iso) => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 const fmtAmt = (n) => `₹${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+const fmtShort = (n) => n >= 1000 ? `₹${(n / 1000).toFixed(1)}k` : `₹${Math.round(n)}`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const FinanceTracker = () => {
@@ -51,8 +51,50 @@ const FinanceTracker = () => {
         incomes, addIncome, deleteIncome,
         savingsEntries, addSavings, deleteSavings,
         totalExpenses, totalIncome, savings, savingRatio,
-        insightMsg, anomalyAlert, budgetAlert
+        insightMsg, anomalyAlert, budgetAlert, mutationError
     } = useContext(FinanceContext);
+
+    // ── Dynamic username from localStorage (set at login) ──
+    const username = useMemo(() => {
+        try {
+            const u = JSON.parse(localStorage.getItem('user'));
+            return u?.username || u?.first_name || u?.email?.split('@')[0] || 'User';
+        } catch { return 'User'; }
+    }, []);
+
+    // ── Compute last-7-days spending bars from real expense data ──
+    const weeklyBars = useMemo(() => {
+        const today = new Date();
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(today);
+            d.setDate(today.getDate() - (6 - i));
+            const dateStr = d.toISOString().split('T')[0];
+            const dayTotal = expenses
+                .filter(e => e.date === dateStr)
+                .reduce((sum, e) => sum + e.amount, 0);
+            return { day: DAY_LABELS[d.getDay()], total: dayTotal, dateStr };
+        });
+    }, [expenses]);
+
+    const weeklyMax = useMemo(() => Math.max(...weeklyBars.map(b => b.total), 1), [weeklyBars]);
+    const weeklyAvg = useMemo(() => {
+        const nonZero = weeklyBars.filter(b => b.total > 0);
+        return nonZero.length ? nonZero.reduce((s, b) => s + b.total, 0) / nonZero.length : 0;
+    }, [weeklyBars]);
+
+    // ── Compute category breakdown from real expense data ──
+    const categoryStats = useMemo(() => {
+        const totals = {};
+        expenses.forEach(e => {
+            const cat = e.category || 'Other';
+            totals[cat] = (totals[cat] || 0) + e.amount;
+        });
+        const grand = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
+        return Object.entries(totals)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([label, val]) => ({ label, pct: Math.round((val / grand) * 100) }));
+    }, [expenses]);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -78,7 +120,7 @@ const FinanceTracker = () => {
                 if (res.predicted_category) {
                     const catLower = res.predicted_category.toLowerCase();
                     const isIncomeCat = INCOME_CATEGORIES.some(c => c.toLowerCase() === catLower);
-                    
+
                     if (isIncomeCat || catLower === 'income') {
                         setTransactionMode('income');
                         const validCategory = INCOME_CATEGORIES.find(c => c.toLowerCase() === catLower);
@@ -170,6 +212,16 @@ const FinanceTracker = () => {
                 </div>
             )}
 
+            {/* MUTATION ERROR TOAST */}
+            {mutationError && (
+                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100]">
+                    <div className="bg-[#2a0a0a]/95 backdrop-blur border border-error/50 px-5 py-3 rounded-xl shadow-[0_0_20px_rgba(255,50,50,0.3)] flex items-center gap-3">
+                        <span className="material-symbols-outlined text-error text-lg">error</span>
+                        <span className="text-error text-sm font-medium">{mutationError}</span>
+                    </div>
+                </div>
+            )}
+
 
             {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
             <header className="fixed top-0 w-full z-50 bg-[#1d0c26]/60 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 h-20 shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
@@ -192,7 +244,7 @@ const FinanceTracker = () => {
                     <div className="flex items-center gap-4">
                         <span className="material-symbols-outlined text-[#ffb59e]/70 hover:text-[#fff9ef] transition-colors cursor-pointer">notifications</span>
                         <div className="flex items-center gap-3">
-                            <span className="hidden sm:block font-medium text-on-surface text-sm">Alex Mercer</span>
+                            <span className="hidden sm:block font-medium text-on-surface text-sm">{username}</span>
                             <img
                                 alt="User avatar"
                                 className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-primary/20 object-cover"
@@ -218,7 +270,7 @@ const FinanceTracker = () => {
                     <div className="flex items-center gap-3 p-4 bg-surface-container-low rounded-xl border border-outline-variant/10">
                         <div className="w-2 h-10 bg-primary rounded-full" />
                         <div>
-                            <p className="text-[#f6d9fd] font-bold text-sm">Alex Mercer</p>
+                            <p className="text-[#f6d9fd] font-bold text-sm">{username}</p>
                             <p className="text-primary-container text-[10px] font-bold uppercase tracking-wider">Level 12 Initiated</p>
                         </div>
                     </div>
@@ -317,10 +369,10 @@ const FinanceTracker = () => {
                         </div>
                         {/* Budget Prediction ML (Dynamic) */}
                         <div className={`glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl ${budgetAlert?.includes('exceed') ? 'border-error' :
-                                budgetAlert?.includes('within') ? 'border-emerald-500' : 'border-secondary-container'
+                            budgetAlert?.includes('within') ? 'border-emerald-500' : 'border-secondary-container'
                             }`}>
                             <div className={`p-3 rounded-full shrink-0 ${budgetAlert?.includes('exceed') ? 'bg-error/20 text-error' :
-                                    budgetAlert?.includes('within') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-secondary-container/20 text-secondary-fixed'
+                                budgetAlert?.includes('within') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-secondary-container/20 text-secondary-fixed'
                                 }`}>
                                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
                                     {budgetAlert?.includes('exceed') ? 'warning' : budgetAlert?.includes('within') ? 'check_circle' : 'hourglass_empty'}
@@ -328,12 +380,12 @@ const FinanceTracker = () => {
                             </div>
                             <div>
                                 <span className={`text-[10px] uppercase tracking-widest font-bold ${budgetAlert?.includes('exceed') ? 'text-error' :
-                                        budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
+                                    budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
                                     }`}>
                                     ML Budget Predictor
                                 </span>
                                 <h4 className={`font-bold mb-1 mt-1 ${budgetAlert?.includes('exceed') ? 'text-error' :
-                                        budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
+                                    budgetAlert?.includes('within') ? 'text-emerald-400' : 'text-secondary-fixed'
                                     }`}>
                                     {budgetAlert?.includes('exceed') ? 'Budget Alert' : budgetAlert?.includes('within') ? 'On Track' : 'Gathering Data'}
                                 </h4>
@@ -344,10 +396,10 @@ const FinanceTracker = () => {
                         </div>
                         {/* Dynamic Backend Insight */}
                         <div className={`glass-panel p-6 rounded-xl flex items-start gap-4 border-l-4 shadow-[0_20px_40px_rgba(255,77,0,0.08)] bg-[#36233e]/60 backdrop-blur-xl ${insightMsg?.toLowerCase().includes('increased') ? 'border-tertiary-container' :
-                                insightMsg?.toLowerCase().includes('decreased') ? 'border-emerald-500' : 'border-[#f6d9fd]'
+                            insightMsg?.toLowerCase().includes('decreased') ? 'border-emerald-500' : 'border-[#f6d9fd]'
                             }`}>
                             <div className={`p-3 rounded-full shrink-0 ${insightMsg?.toLowerCase().includes('increased') ? 'bg-tertiary-container/20 text-tertiary' :
-                                    insightMsg?.toLowerCase().includes('decreased') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#f6d9fd]/20 text-[#f6d9fd]'
+                                insightMsg?.toLowerCase().includes('decreased') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#f6d9fd]/20 text-[#f6d9fd]'
                                 }`}>
                                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
                                     {insightMsg?.toLowerCase().includes('increased') ? 'trending_up' :
@@ -356,12 +408,12 @@ const FinanceTracker = () => {
                             </div>
                             <div>
                                 <span className={`text-[10px] uppercase tracking-widest font-bold ${insightMsg?.toLowerCase().includes('increased') ? 'text-tertiary' :
-                                        insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
+                                    insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
                                     }`}>
                                     {insightMsg?.toLowerCase().includes('increased') ? 'Caution' : 'Update'}
                                 </span>
                                 <h4 className={`font-bold mb-1 mt-1 ${insightMsg?.toLowerCase().includes('increased') ? 'text-tertiary' :
-                                        insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
+                                    insightMsg?.toLowerCase().includes('decreased') ? 'text-emerald-400' : 'text-[#f6d9fd]'
                                     }`}>
                                     {insightMsg?.toLowerCase().includes('increased') ? 'Spending Increased' :
                                         insightMsg?.toLowerCase().includes('decreased') ? 'Spending Decreased' : 'Spending Steady'}
@@ -497,8 +549,8 @@ const FinanceTracker = () => {
                                             >
                                                 {(transactionMode === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES)
                                                     .filter(c => c !== 'Other').map(c => (
-                                                    <option key={c}>{c}</option>
-                                                ))}
+                                                        <option key={c}>{c}</option>
+                                                    ))}
                                             </select>
                                         </div>
                                     ) : (
@@ -774,6 +826,9 @@ const FinanceTracker = () => {
                         {/* ── RIGHT COLUMN (4/12) ─────────────────────────── */}
                         <div className="xl:col-span-4 space-y-8">
 
+                            {/* ✅ ADD THIS LINE HERE */}
+                            <SpendingPersona />
+
                             {/* SPENDING TREND CHART */}
                             <div className="glass-card p-6 md:p-8 rounded-3xl border border-outline-variant/10 bg-[#36233e]/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(255,77,0,0.08)]">
                                 <h4 className="font-headline text-lg font-bold text-secondary mb-6 flex items-center justify-between">
@@ -781,26 +836,30 @@ const FinanceTracker = () => {
                                     <span className="material-symbols-outlined text-primary">bar_chart</span>
                                 </h4>
                                 <div className="h-40 flex items-end justify-between gap-2 mt-4 mb-2">
-                                    {WEEKLY_BARS.map((bar, i) => (
-                                        <div key={bar.day} className={`w-full rounded-t-sm relative group cursor-pointer transition-all ${i === 5 ? 'bg-primary shadow-[0_0_15px_rgba(255,181,158,0.4)]' : 'bg-primary-container/10 hover:bg-primary/50'}`} style={{ height: `${bar.h}%` }}>
-                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-highest px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                                {bar.amt}
+                                    {weeklyBars.map((bar, i) => {
+                                        const heightPct = weeklyMax > 0 ? (bar.total / weeklyMax) * 100 : 4;
+                                        const isToday = i === 6;
+                                        return (
+                                            <div key={bar.dateStr} className={`w-full rounded-t-sm relative group cursor-pointer transition-all ${isToday ? 'bg-primary shadow-[0_0_15px_rgba(255,181,158,0.4)]' : 'bg-primary-container/10 hover:bg-primary/50'}`} style={{ height: `${Math.max(heightPct, 4)}%` }}>
+                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-highest px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                    {bar.total > 0 ? fmtShort(bar.total) : 'No spend'}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                                 <div className="flex justify-between border-t border-outline-variant/10 pt-3 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">
-                                    {WEEKLY_BARS.map((b, i) => (
-                                        <span key={b.day} className={i === 5 ? 'text-primary border-b border-primary pb-1 -mb-1' : ''}>{b.day}</span>
+                                    {weeklyBars.map((b, i) => (
+                                        <span key={b.dateStr} className={i === 6 ? 'text-primary border-b border-primary pb-1 -mb-1' : ''}>{b.day}</span>
                                     ))}
                                 </div>
                                 <div className="mt-6 bg-surface-container-low p-4 rounded-xl border border-white/5">
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs text-on-surface-variant font-medium">Daily Average</span>
-                                        <span className="text-sm font-bold text-secondary">₹2.0k</span>
+                                        <span className="text-xs text-on-surface-variant font-medium">7-Day Average</span>
+                                        <span className="text-sm font-bold text-secondary">{fmtShort(weeklyAvg)}</span>
                                     </div>
                                     <div className="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-gradient-to-r from-primary to-primary-container w-[60%] rounded-full" />
+                                        <div className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-500" style={{ width: weeklyMax > 0 ? `${Math.min((weeklyAvg / weeklyMax) * 100, 100)}%` : '0%' }} />
                                     </div>
                                 </div>
                             </div>
@@ -822,20 +881,17 @@ const FinanceTracker = () => {
                                     </div>
                                 </div>
                                 <div className="mt-2 space-y-2 pt-4 border-t border-white/5">
-                                    {[
-                                        { label: 'Food & Dining', color: 'bg-primary', pct: 25 },
-                                        { label: 'Rent', color: 'bg-secondary-container', pct: 42 },
-                                        { label: 'Entertainment', color: 'bg-tertiary', pct: 18 },
-                                        { label: 'Transport', color: 'bg-emerald-500', pct: 15 },
-                                    ].map(({ label, color, pct }) => (
+                                    {categoryStats.length > 0 ? categoryStats.map(({ label, pct }, idx) => (
                                         <div key={label} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-white/5 transition-colors">
                                             <span className="flex items-center gap-2.5 text-on-surface-variant font-medium">
-                                                <span className={`w-2 h-2 rounded-full ${color}`} />
+                                                <span className={`w-2 h-2 rounded-full ${CAT_COLORS[idx % CAT_COLORS.length]}`} />
                                                 {label}
                                             </span>
                                             <span className="text-on-surface font-bold">{pct}%</span>
                                         </div>
-                                    ))}
+                                    )) : (
+                                        <p className="text-center text-on-surface-variant/50 text-xs py-4">No expense data yet</p>
+                                    )}
                                 </div>
                             </div>
 
