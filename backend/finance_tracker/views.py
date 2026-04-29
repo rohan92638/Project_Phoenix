@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Sum
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import numpy as np
 
@@ -21,22 +21,38 @@ from django.db.models.functions import TruncDate
 from django.db.models import Avg, StdDev, Count
 
 # =========================
-# 🔥 ANOMALY DETECTION LOGIC
+# 🔥 ANOMALY DETECTION LOGIC  (90-day rolling window)
 # =========================
 def detect_anomaly(user, new_amount):
-    stats = Transaction.objects.filter(user=user, transaction_type='EXPENSE').aggregate(
+    """
+    Flags an expense as anomalous if it exceeds mean + 2*std of the
+    user's expenses in the LAST 90 DAYS only.
+
+    Using a rolling window prevents a single old outlier from permanently
+    inflating the baseline and suppressing future alerts.
+
+    Requires at least 5 expenses in the window before activating.
+    """
+    window_start = datetime.now().date() - timedelta(days=90)
+
+    stats = Transaction.objects.filter(
+        user=user,
+        transaction_type='EXPENSE',
+        date__gte=window_start           # ← only recent 90 days
+    ).aggregate(
         mean=Avg('amount'),
         std=StdDev('amount'),
         count=Count('id')
     )
 
     count = stats['count']
-    mean = stats['mean']
-    std = stats['std']
+    mean  = stats['mean']
+    std   = stats['std']
 
-    # Need minimum data and valid stats
-    if count < 5 or mean is None or std is None:
+    # Need minimum data and valid stats inside the window
+    if count < 5 or mean is None or std is None or float(std) == 0:
         return False
+
 
     return float(new_amount) > float(mean) + 2 * float(std)
 

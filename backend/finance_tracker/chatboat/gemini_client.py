@@ -1,33 +1,57 @@
-# gemini_client.py
+"""
+gemini_client.py
+=================
+AI communication layer using the current google-genai SDK.
+Loaded once at module level — efficient and fast.
+"""
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from decouple import config
 
-# Step 1: Load API Key from .env
+# ── Load API key from .env ────────────────────────────────────────────────────
 GEMINI_API_KEY = config("GEMINI_API_KEY")
 
-# Step 2: Configure Gemini with API Key
-genai.configure(api_key=GEMINI_API_KEY)
+# ── Initialize client (load once) ────────────────────────────────────────────
+_client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Step 3: Initialize the model (LOAD ONCE)
-model = genai.GenerativeModel("gemini-1.5-flash")
+MODEL_ID = "gemini-2.0-flash"   # fast + capable
 
 
-def ask_gemini(prompt, history=None):
+def ask_gemini(prompt: str, history: list = None) -> str:
     """
-    Sends prompt + history to Gemini and returns response text
-    """
+    Send a prompt to Gemini and return the response text.
 
+    Args:
+        prompt  : full assembled prompt string
+        history : Gemini-format history list (not used in non-chat mode below)
+
+    Returns:
+        str: AI response text, stripped of extra whitespace
+    """
     try:
-        # Step 4: Start chat session with history
-        chat = model.start_chat(history=history or [])
+        # Build contents: history messages + current prompt
+        contents = []
 
-        # Step 5: Send message (prompt)
-        response = chat.send_message(prompt)
+        if history:
+            for msg in history[-10:]:   # last 5 exchanges max
+                role = msg.get("role", "user")
+                text = msg.get("parts", [""])[0]
+                contents.append(
+                    types.Content(role=role, parts=[types.Part(text=text)])
+                )
 
-        # Step 6: Return clean text response
+        # Add the current prompt as a user message
+        contents.append(
+            types.Content(role="user", parts=[types.Part(text=prompt)])
+        )
+
+        response = _client.models.generate_content(
+            model=MODEL_ID,
+            contents=contents,
+        )
+
         return response.text.strip()
 
     except Exception as e:
-        # Step 7: Handle errors safely
-        return f"Error: {str(e)}"
+        return f"I'm having trouble responding right now. Error: {str(e)}"
