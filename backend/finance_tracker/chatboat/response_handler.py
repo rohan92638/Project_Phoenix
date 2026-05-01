@@ -23,6 +23,7 @@ from .data_fetcher   import (
 from .prompt_builder import build_prompt
 from .gemini_client  import ask_gemini
 from .memory_manager import get_history, add_exchange
+from .vector_store   import add_to_vector_db
 
 
 def handle_chat(user, user_message: str, session_id: str = "default") -> str:
@@ -96,5 +97,12 @@ def handle_chat(user, user_message: str, session_id: str = "default") -> str:
 
     # ── 7. Store exchange in memory ───────────────────────────────────────────
     add_exchange(session_id, user_message, reply)
+    
+    # ── 8. Store to Vector DB for permanent semantic search ───────────────────
+    exchange_text = f"User asked: '{user_message}' | AI replied: '{reply}'"
+    try:
+        add_to_vector_db(user.id, exchange_text)
+    except Exception as e:
+        print(f"Warning: Failed to save to vector DB: {e}")
 
     return reply

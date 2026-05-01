@@ -55,3 +55,19 @@ def ask_gemini(prompt: str, history: list = None) -> str:
 
     except Exception as e:
         return f"I'm having trouble responding right now. Error: {str(e)}"
+
+def get_embedding(text: str) -> list[float]:
+    """
+    Generate a vector embedding for the given text using Gemini.
+    Returns a 768-dimensional float list.
+    """
+    try:
+        response = _client.models.embed_content(
+            model="text-embedding-004",
+            contents=text
+        )
+        return response.embeddings[0].values
+    except Exception as e:
+        print(f"Failed to generate embedding: {e}")
+        # Return a zero vector of dimension 768 as fallback
+        return [0.0] * 768
