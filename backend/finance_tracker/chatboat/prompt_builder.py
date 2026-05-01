@@ -98,6 +98,18 @@ def _format_financial_data(intent: str, entities: dict, data: dict) -> str:
     if "total_savings" in data:
         lines.append(f"🏦 Manual Savings Total: {_fmt(data['total_savings'])}")
         lines.append("")
+        # ── 🔮 Budget Prediction ──────────────────────────────────────────────────
+    if "prediction" in data:
+        pred = data["prediction"]
+
+        if isinstance(pred, dict):
+            lines.append("🔮 Budget Prediction")
+            lines.append(f"  Expected Spending: {_fmt(pred.get('expected_spending', 0))}")
+            lines.append(f"  Expected Savings:  {_fmt(pred.get('expected_savings', 0))}")
+            lines.append("")
+        else:
+            lines.append(f"📈 Predicted Expense: {_fmt(pred)}")
+            lines.append("")
 
     if len(lines) <= 3:
         lines.append("  No data found for this period.")
@@ -110,7 +122,7 @@ def _format_financial_data(intent: str, entities: dict, data: dict) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_prompt(user_query: str, intent: str, entities: dict,
-                 data: dict, history: list = None) -> str:
+                 data: dict, history: list = None, memory_context: list = None) -> str:
     """
     Assemble the final prompt string sent to Gemini.
 
@@ -124,9 +136,18 @@ def build_prompt(user_query: str, intent: str, entities: dict,
     data_block = _format_financial_data(intent, entities, data)
     history_block = _format_history(history)
 
+    # ── 🔥 Memory context (FAISS retrieval) ────────────────────────────────────
+    if memory_context:
+        memory_block = "\n".join([f"- {m}" for m in memory_context])
+    else:
+        memory_block = "No relevant past context."
+
     prompt = f"""{SYSTEM_PERSONA}
 
 {data_block}
+
+[RELEVANT PAST CONTEXT]
+{memory_block}
 
 [CONVERSATION HISTORY]
 {history_block}

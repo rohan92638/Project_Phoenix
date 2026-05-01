@@ -1,8 +1,11 @@
 """
-vector_store.py
-===============
-FAISS vector store for semantic memory search.
-Converts text into embeddings and stores them to disk.
+vector_store.py (Improved)
+=========================
+FAISS vector store for semantic memory (RAG-ready).
+Supports:
+- Add memory
+- Search memory
+- Context formatting for LLM
 """
 
 import faiss
@@ -12,92 +15,140 @@ import json
 from django.conf import settings
 from .gemini_client import get_embedding
 
-# Use Gemini's text-embedding-004 dimension
-EMBEDDING_DIM = 768
+# Gemini embedding dimension
+EMBEDDING_DIM = 3072
 
-# Store the vector DB in the Django base directory
 BASE_DIR = settings.BASE_DIR
 INDEX_FILE = os.path.join(BASE_DIR, "faiss_index.bin")
 META_FILE = os.path.join(BASE_DIR, "faiss_meta.json")
 
-# Global variables to hold the in-memory index
 _index = None
 _metadata = []
 
+
+# ─────────────────────────────────────────────────────────
+# INIT DB
+# ─────────────────────────────────────────────────────────
 def _init_db():
     global _index, _metadata
+
     if _index is None:
         if os.path.exists(INDEX_FILE):
             _index = faiss.read_index(INDEX_FILE)
+
             if os.path.exists(META_FILE):
-                with open(META_FILE, 'r') as f:
+                with open(META_FILE, "r") as f:
                     _metadata = json.load(f)
             else:
                 _metadata = []
         else:
+            # L2 distance index
             _index = faiss.IndexFlatL2(EMBEDDING_DIM)
             _metadata = []
 
+
+# ─────────────────────────────────────────────────────────
+# SAVE DB
+# ─────────────────────────────────────────────────────────
 def _save_db():
-    global _index, _metadata
     faiss.write_index(_index, INDEX_FILE)
-    with open(META_FILE, 'w') as f:
+
+    with open(META_FILE, "w") as f:
         json.dump(_metadata, f)
 
+
+# ─────────────────────────────────────────────────────────
+# ADD MEMORY
+# ─────────────────────────────────────────────────────────
 def add_to_vector_db(user_id, text, embedding=None):
     """
-    Convert text to an embedding and add it to the FAISS index.
-    Saves the text and user_id to disk so it survives restarts.
+    Store conversation into vector DB
     """
+
     _init_db()
-    
+
     if embedding is None:
         embedding = get_embedding(text)
-        
-    # FAISS expects a 2D numpy array of float32
+
+    if embedding is None:
+        return  # fail silently
+
     vec = np.array([embedding], dtype=np.float32)
+
     _index.add(vec)
-    
+
     _metadata.append({
         "user_id": str(user_id),
         "text": text
     })
-    
+
     _save_db()
 
+
+# ─────────────────────────────────────────────────────────
+# SEARCH MEMORY (CORE RAG FUNCTION)
+# ─────────────────────────────────────────────────────────
 def search_vector_db(user_id, text=None, embedding=None, k=3):
     """
-    Search the FAISS index for the k nearest matches to the given text.
-    Filters by user_id to ensure security.
+    Retrieve similar past conversations
     """
+
     _init_db()
-    
+
     if _index.ntotal == 0:
         return []
-        
-    if embedding is None and text is not None:
+
+    if embedding is None and text:
         embedding = get_embedding(text)
-        
+
     if embedding is None:
         return []
 
     vec = np.array([embedding], dtype=np.float32)
-    
-    # Search for more than k to account for filtering by user_id
+
     search_k = min(k * 5, _index.ntotal)
+
     distances, indices = _index.search(vec, search_k)
-    
+
     results = []
+
     for i, idx in enumerate(indices[0]):
-        if idx != -1:
-            meta = _metadata[idx]
-            # Ensure we only return data belonging to the requesting user
-            if meta["user_id"] == str(user_id):
-                results.append({
-                    "text": meta["text"],
-                    "distance": float(distances[0][i])
-                })
-                if len(results) == k:
-                    break
-                    
+        if idx == -1:
+            continue
+
+        meta = _metadata[idx]
+
+        # 🔐 User isolation
+        if meta["user_id"] != str(user_id):
+            continue
+
+        results.append({
+            "text": meta["text"],
+            "distance": float(distances[0][i])
+        })
+
+        if len(results) >= k:
+            break
+
     return results
+
+
+# ─────────────────────────────────────────────────────────
+# FORMAT MEMORY FOR PROMPT (NEW)
+# ─────────────────────────────────────────────────────────
+def get_memory_context(user_id, query, k=3):
+    """
+    Convert retrieved memory into readable prompt format
+    """
+
+    results = search_vector_db(user_id, text=query, k=k)
+
+    if not results:
+        return "No relevant past memory."
+
+    lines = ["[RELEVANT PAST MEMORY]"]
+
+    for item in results:
+        lines.append(f"- {item['text']}")
+
+    return "\n".join(lines)

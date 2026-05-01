@@ -23,10 +23,14 @@ from .data_fetcher   import (
 from .prompt_builder import build_prompt
 from .gemini_client  import ask_gemini
 from .memory_manager import get_history, add_exchange
-from .vector_store   import add_to_vector_db
+from .ml_model import predict_budget
+from .vector_store import add_to_vector_db, get_memory_context
+from .voice_handler  import text_to_speech_base64
 
 
-def handle_chat(user, user_message: str, session_id: str = "default") -> str:
+
+def handle_chat(user, user_message: str, session_id: str = "default",
+                voice_output: bool = False) -> dict:
     """
     Full chatbot pipeline. Called by the Django view.
 
@@ -34,9 +38,10 @@ def handle_chat(user, user_message: str, session_id: str = "default") -> str:
         user         : Django User object
         user_message : raw text from the user
         session_id   : unique session string from frontend (for memory)
+        voice_output : if True, generate base64 TTS audio of the reply
 
     Returns:
-        str: AI reply text
+        dict: { "reply": str, "audio_base64": str|None }
     """
 
     # ── 1. Retrieve conversation memory ───────────────────────────────────────
@@ -77,27 +82,32 @@ def handle_chat(user, user_message: str, session_id: str = "default") -> str:
         data = get_financial_summary(user, start_date, end_date)
 
     elif intent == "budget_planning":
-        # Give full picture + overall all-time context
         data = get_financial_summary(user, start_date, end_date)
         data["overall"] = get_overall_summary(user)
 
+        # 🔥 Add ML prediction
+        prediction = predict_budget(user)
+        data["prediction"] = prediction
+
     elif intent in ("financial_advice", "investment_query",
                     "financial_education", "general_chat"):
-        # Always give summary context so the AI is grounded even for advice
         data = get_overall_summary(user)
 
     else:
         data = get_overall_summary(user)
 
+    # ──  4.5 Retrieve relevant past memory (FAISS) ──────────────────────────
+    memory_context = get_memory_context(user.id, user_message)
+
     # ── 5. Build the grounded prompt ──────────────────────────────────────────
-    prompt = build_prompt(user_message, intent, entities, data, history)
+    prompt = build_prompt(user_message, intent, entities, data, history, memory_context)
 
     # ── 6. Call Gemini ────────────────────────────────────────────────────────
     reply = ask_gemini(prompt, history=history)
 
     # ── 7. Store exchange in memory ───────────────────────────────────────────
     add_exchange(session_id, user_message, reply)
-    
+
     # ── 8. Store to Vector DB for permanent semantic search ───────────────────
     exchange_text = f"User asked: '{user_message}' | AI replied: '{reply}'"
     try:
@@ -105,4 +115,16 @@ def handle_chat(user, user_message: str, session_id: str = "default") -> str:
     except Exception as e:
         print(f"Warning: Failed to save to vector DB: {e}")
 
-    return reply
+    # ── 9. Optionally generate voice output (TTS) ─────────────────────────────
+    audio_base64 = None
+    if voice_output:
+        try:
+            audio_base64 = text_to_speech_base64(reply)
+        except Exception as e:
+            print(f"Warning: TTS generation failed: {e}")
+
+    return {
+        "reply":        reply,
+        "audio_base64": audio_base64,
+    }
+
