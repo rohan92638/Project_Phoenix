@@ -907,6 +907,15 @@ const FinanceTracker = () => {
                 <div className="fixed bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-tertiary-container/5 rounded-full blur-[100px] pointer-events-none -z-10" />
             </main>
 
+            {/* ── AI CHATBOT FAB ──────────────────────────────────────────────────── */}
+            <Link
+                to="/finance-chat"
+                className="fixed bottom-24 right-8 md:bottom-8 md:right-8 w-16 h-16 rounded-full bg-gradient-to-br from-[#ffb59e] to-[#ff571a] text-[#2a0a0a] flex items-center justify-center shadow-[0_10px_25px_rgba(255,87,26,0.5)] z-50 hover:scale-110 active:scale-95 transition-transform"
+                title="Talk to Phoenix AI"
+            >
+                <span className="material-symbols-outlined text-3xl font-bold">smart_toy</span>
+            </Link>
+
             {/* ── MOBILE FAB ──────────────────────────────────────────────────── */}
             <button
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}

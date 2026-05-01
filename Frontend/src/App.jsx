@@ -15,6 +15,7 @@ import Analysis from './pages/Analysis';
 import Test from './pages/Test';
 import CourseDetail from './pages/CourseDetail';
 import FinanceHistory from './pages/FinanceHistory';
+import PhoenixChat from './pages/PhoenixChat';
 import { FinanceProvider } from './context/FinanceContext';
 
 //  IMPORT THIS
@@ -73,6 +74,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <FinanceTracker />
+                            </ProtectedRoute>
+                        }
+                    />
+                    
+                    <Route
+                        path="/finance-chat"
+                        element={
+                            <ProtectedRoute>
+                                <PhoenixChat />
                             </ProtectedRoute>
                         }
                     />

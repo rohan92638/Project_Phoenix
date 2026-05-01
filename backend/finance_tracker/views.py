@@ -241,3 +241,81 @@ def financial_persona_api(request):
         "expense_persona": expense_persona,
         "income_persona": income_persona
     })
+
+# =========================
+# 🤖 CHATBOT API (Text)
+# =========================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def chat_api(request):
+    """
+    Text chatbot endpoint.
+    POST body: { "message": "...", "session_id": "...", "voice_output": bool }
+    Returns:   { "reply": "...", "audio_base64": "..." | null }
+    """
+    from .chatboat.response_handler import handle_chat
+
+    message      = request.data.get("message", "").strip()
+    session_id   = request.data.get("session_id", "default")
+    voice_output = bool(request.data.get("voice_output", False))
+
+    if not message:
+        return Response({"error": "Message is required"}, status=400)
+
+    try:
+        result = handle_chat(request.user, message, session_id, voice_output=voice_output)
+        return Response(result)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+# =========================
+# 🎙️ VOICE CHAT API (Audio → Text → AI → Audio)
+# =========================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def voice_chat_api(request):
+    """
+    Full voice pipeline endpoint:
+      1. Accepts an audio file upload (WebM/WAV from the browser MediaRecorder)
+      2. Transcribes audio → text using Google Speech Recognition
+      3. Runs the full chatbot pipeline
+      4. Returns the AI reply text + base64 TTS audio
+
+    POST: multipart/form-data
+      - audio      : audio file blob
+      - session_id : session string
+    Response: { "transcript": "...", "reply": "...", "audio_base64": "..." }
+    """
+    from .chatboat.response_handler import handle_chat
+    from .chatboat.voice_handler    import transcribe_audio
+
+    audio_file = request.FILES.get("audio")
+    session_id = request.data.get("session_id", "default")
+
+    if not audio_file:
+        return Response({"error": "Audio file is required"}, status=400)
+
+    try:
+        # Step 1: Read raw audio bytes
+        audio_bytes = audio_file.read()
+
+        # Step 2: Transcribe audio → text
+        transcript = transcribe_audio(audio_bytes, content_type=audio_file.content_type)
+
+        if not transcript:
+            return Response({"error": "Could not understand the audio. Please speak clearly."}, status=422)
+
+        # Step 3 + 4: Run chatbot + generate TTS output
+        result = handle_chat(request.user, transcript, session_id, voice_output=True)
+
+        return Response({
+            "transcript":   transcript,
+            "reply":        result["reply"],
+            "audio_base64": result["audio_base64"],
+        })
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

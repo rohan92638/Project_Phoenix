@@ -138,3 +138,24 @@ def get_highest_spending(user, start_date=None, end_date=None):
 def get_overall_summary(user):
     """All-time summary — used as fallback context for advice/education queries."""
     return get_financial_summary(user, date(2000, 1, 1), date.today())
+
+
+# ==========================================
+# ML Wrapper
+# ==========================================
+
+def predict_budget(user, default_budget=50000) -> dict:
+    from django.db.models import Sum
+    from django.db.models.functions import TruncDate
+    from finance_tracker.ml.budget_predictor import predict_budget_exceed
+
+    daily_data = (
+        Transaction.objects
+        .filter(user=user, transaction_type="EXPENSE")
+        .annotate(day=TruncDate('date'))
+        .values('day')
+        .annotate(total=Sum('amount'))
+        .order_by('day')
+    )
+    daily_expenses = [float(d['total']) for d in daily_data]
+    return predict_budget_exceed(daily_expenses, default_budget)

@@ -104,3 +104,36 @@ export const parseVoiceTransaction = (text) => {
 export const getSpendingPersona = () => {
     return apiRequest("/api/finance/persona/");
 };
+
+// ================= CHATBOT API =================
+
+export const sendChatMessage = (message, session_id, voice_output = false) => {
+    return apiRequest("/api/finance/chat/", "POST", { 
+        message, 
+        session_id,
+        voice_output 
+    });
+};
+
+export const sendVoiceMessage = async (audioBlob, session_id) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error("No token found");
+
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "voice_recording.webm");
+    formData.append("session_id", session_id);
+
+    const response = await fetch("http://127.0.0.1:8000/api/finance/voice-chat/", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${token}`
+        },
+        body: formData
+    });
+
+    if (!response.ok) {
+        throw new Error("Voice chat request failed");
+    }
+
+    return response.json();
+};

@@ -19,11 +19,11 @@ from .date_parser    import parse_date
 from .data_fetcher   import (
     get_expenses, get_income, get_savings,
     get_financial_summary, get_highest_spending, get_overall_summary,
+    predict_budget
 )
 from .prompt_builder import build_prompt
 from .gemini_client  import ask_gemini
 from .memory_manager import get_history, add_exchange
-from .ml_model import predict_budget
 from .vector_store import add_to_vector_db, get_memory_context
 from .voice_handler  import text_to_speech_base64
 

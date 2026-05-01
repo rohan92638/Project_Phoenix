@@ -54,7 +54,35 @@ def ask_gemini(prompt: str, history: list = None) -> str:
         return response.text.strip()
 
     except Exception as e:
-        return f"I'm having trouble responding right now. Error: {str(e)}"
+        error_str = str(e)
+
+        # ── Quota / Rate-limit errors ─────────────────────────────────────────
+        if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+            # Check if daily quota is completely exhausted
+            if "limit: 0" in error_str or "GenerateRequestsPerDayPerProjectPerModel" in error_str:
+                return (
+                    "🚫 The AI service daily quota has been reached. "
+                    "This usually resets at midnight Pacific Time. "
+                    "Please create a new API key at https://aistudio.google.com "
+                    "to continue using the chatbot right now."
+                )
+            # Check if it's a per-minute rate limit (retry possible)
+            if "GenerateRequestsPerMinutePerProjectPerModel" in error_str or "retry in" in error_str.lower():
+                return (
+                    "⏳ I'm receiving too many requests right now. "
+             
+                    "Please wait about 30–60 seconds and try again."
+                )
+            
+            return "🚫 The AI service daily quota has been reached."
+
+        # ── Network / connectivity errors ─────────────────────────────────────
+        if "ConnectionError" in error_str or "timeout" in error_str.lower():
+            return "🌐 I couldn't reach the AI server. Please check your internet connection."
+
+        # ── Generic fallback ─────────────────────────────────────────────────
+        print(f"[GeminiClient] Unexpected error: {error_str}")
+        return "⚠️ Something went wrong on my end. Please try again in a moment."
 
 def get_embedding(text: str) -> list[float]:
     """

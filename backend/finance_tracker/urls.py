@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import TransactionViewSet, predict_category_api, spending_insight_api, budget_prediction_api, parse_voice_api, financial_persona_api
+from .views import TransactionViewSet, predict_category_api, spending_insight_api, budget_prediction_api, parse_voice_api, financial_persona_api, chat_api, voice_chat_api
 
 # Initialize the DefaultRouter natively tied to DRF
 router = DefaultRouter()
@@ -16,4 +16,8 @@ urlpatterns = [
     path('budget-predict/', budget_prediction_api),
     path('parse-voice/', parse_voice_api),
     path('persona/', financial_persona_api),
+    
+    # 🤖 Chatbot endpoints
+    path('chat/', chat_api),
+    path('voice-chat/', voice_chat_api),
 ]
