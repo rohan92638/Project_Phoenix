@@ -108,10 +108,10 @@ export const getSpendingPersona = () => {
 // ================= CHATBOT API =================
 
 export const sendChatMessage = (message, session_id, voice_output = false) => {
-    return apiRequest("/api/finance/chat/", "POST", { 
-        message, 
+    return apiRequest("/api/finance/chat/", "POST", {
+        message,
         session_id,
-        voice_output 
+        voice_output
     });
 };
 

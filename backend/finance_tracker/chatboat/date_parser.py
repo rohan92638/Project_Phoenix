@@ -61,30 +61,84 @@ def parse_date(date_text: str):
         end   = today.replace(year=today.year - 1, month=12, day=31)
         return {"start_date": start, "end_date": end}
 
-    # ── "last N days" / "past N days" ─────────────────────────────────────────
-    m = re.search(r'(?:last|past)\s+(\d+)\s+days?', ds)
+    # ── "last N days" / "past N days" / "next N days" ─────────────────────────
+    m = re.search(r'(?:last|past|next)\s+(\d+)\s+days?', ds)
     if m:
         n = int(m.group(1))
+        # Even if they say "next 5 days", we pull the LAST 5 days as baseline data
         return {"start_date": today - timedelta(days=n), "end_date": today}
 
-    # ── "last N weeks" / "past N weeks" ───────────────────────────────────────
-    m = re.search(r'(?:last|past)\s+(\d+)\s+weeks?', ds)
+    # ── "last N weeks" / "past N weeks" / "next N weeks" ──────────────────────
+    m = re.search(r'(?:last|past|next)\s+(\d+)\s+weeks?', ds)
     if m:
         n = int(m.group(1))
         return {"start_date": today - timedelta(weeks=n), "end_date": today}
 
-    # ── "last N months" ───────────────────────────────────────────────────────
-    m = re.search(r'(?:last|past)\s+(\d+)\s+months?', ds)
+    # ── "last N months" / "next N months" ─────────────────────────────────────
+    m = re.search(r'(?:last|past|next)\s+(\d+)\s+months?', ds)
     if m:
         n = int(m.group(1))
         return {"start_date": today - timedelta(days=n * 30), "end_date": today}
 
-    # ── Named month: "january", "march 2025" ─────────────────────────────────
+    # ── Specific date: "30 April 2026", "30th april", "30 april 2026" ───────
     month_map = {
         "january": 1, "february": 2, "march": 3, "april": 4,
         "may": 5, "june": 6, "july": 7, "august": 8,
         "september": 9, "october": 10, "november": 11, "december": 12
     }
+    month_names = "|".join(month_map.keys())
+
+    # Pattern: "30 April 2026" or "30th april" (day before month)
+    m = re.search(
+        rf'(\d{{1,2}})(?:st|nd|rd|th)?\s+({month_names})(?:\s+(\d{{4}}))?',
+        ds
+    )
+    if m:
+        day = int(m.group(1))
+        month_num = month_map[m.group(2)]
+        year = int(m.group(3)) if m.group(3) else today.year
+        try:
+            specific = datetime(year, month_num, day).date()
+            return {"start_date": specific, "end_date": specific}
+        except ValueError:
+            pass  # invalid date like Feb 30, fall through
+
+    # Pattern: "April 30 2026" or "april 30, 2026" (month before day)
+    m = re.search(
+        rf'({month_names})\s+(\d{{1,2}})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{{4}}))?',
+        ds
+    )
+    if m:
+        month_num = month_map[m.group(1)]
+        day = int(m.group(2))
+        year = int(m.group(3)) if m.group(3) else today.year
+        try:
+            specific = datetime(year, month_num, day).date()
+            return {"start_date": specific, "end_date": specific}
+        except ValueError:
+            pass
+
+    # Pattern: "30/04/2026" or "30-04-2026" (DD/MM/YYYY)
+    m = re.search(r'(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})', ds)
+    if m:
+        day, month_num, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        try:
+            specific = datetime(year, month_num, day).date()
+            return {"start_date": specific, "end_date": specific}
+        except ValueError:
+            pass
+
+    # Pattern: "2026-04-30" (ISO YYYY-MM-DD)
+    m = re.search(r'(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})', ds)
+    if m:
+        year, month_num, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        try:
+            specific = datetime(year, month_num, day).date()
+            return {"start_date": specific, "end_date": specific}
+        except ValueError:
+            pass
+
+    # ── Named month only (no day): "april", "march 2025" → full month ────────
     for name, month_num in month_map.items():
         if name in ds:
             year_match = re.search(r'\d{4}', ds)

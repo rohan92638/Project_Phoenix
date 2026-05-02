@@ -9,7 +9,7 @@ const PhoenixChat = () => {
     ]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // Voice & Audio state
     const [isRecording, setIsRecording] = useState(false);
     const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(true);
@@ -66,13 +66,13 @@ const PhoenixChat = () => {
                 mediaRecorderRef.current.onstop = async () => {
                     const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                     stream.getTracks().forEach(track => track.stop()); // release mic
-                    
+
                     setIsLoading(true);
                     setMessages(prev => [...prev, { role: 'user', text: "🎙️ [Voice Audio Sent]" }]);
-                    
+
                     try {
                         const res = await sendVoiceMessage(audioBlob, sessionId);
-                        
+
                         // Replace the placeholder with the actual transcript
                         setMessages(prev => {
                             const newMsgs = [...prev];
@@ -101,7 +101,7 @@ const PhoenixChat = () => {
     // ── HANDLE AI RESPONSE & AUDIO PLAYBACK ──────────────────────────
     const handleAiResponse = (res) => {
         setMessages(prev => [...prev, { role: 'ai', text: res.reply }]);
-        
+
         if (res.audio_base64 && voiceOutputEnabled) {
             try {
                 const audio = new Audio("data:audio/mp3;base64," + res.audio_base64);
@@ -127,7 +127,7 @@ const PhoenixChat = () => {
                         </p>
                     </div>
                 </div>
-                <button 
+                <button
                     onClick={() => setVoiceOutputEnabled(!voiceOutputEnabled)}
                     className={`p-2 rounded-full transition-colors ${voiceOutputEnabled ? 'bg-primary/20 text-primary' : 'bg-surface-container text-on-surface-variant'}`}
                     title={voiceOutputEnabled ? "Voice Output ON" : "Voice Output OFF"}
@@ -140,18 +140,17 @@ const PhoenixChat = () => {
             <main className="flex-1 overflow-y-auto p-4 space-y-4 max-w-4xl mx-auto w-full">
                 {messages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${
-                            msg.role === 'user' 
-                                ? 'bg-gradient-to-br from-primary to-[#ff571a] text-[#fff9ef] rounded-br-sm shadow-[0_5px_15px_rgba(255,87,26,0.3)]' 
+                        <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${msg.role === 'user'
+                                ? 'bg-gradient-to-br from-primary to-[#ff571a] text-[#fff9ef] rounded-br-sm shadow-[0_5px_15px_rgba(255,87,26,0.3)]'
                                 : msg.isError
                                     ? 'bg-red-500/20 border border-red-500 text-red-200 rounded-bl-sm'
                                     : 'bg-surface-container-high border border-white/5 text-on-surface rounded-bl-sm shadow-md'
-                        }`}>
+                            }`}>
                             <p className="text-sm md:text-base whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                         </div>
                     </div>
                 ))}
-                
+
                 {isLoading && (
                     <div className="flex justify-start">
                         <div className="bg-surface-container-high p-4 rounded-2xl rounded-bl-sm flex gap-2 items-center">
@@ -167,15 +166,14 @@ const PhoenixChat = () => {
             {/* Input Area */}
             <div className="p-4 bg-[#1d0c26]/95 backdrop-blur-lg border-t border-white/5 sticky bottom-0">
                 <div className="max-w-4xl mx-auto flex gap-2 items-end">
-                    
+
                     {/* Voice Recording Button */}
                     <button
                         onClick={toggleRecording}
-                        className={`w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg ${
-                            isRecording
+                        className={`w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg ${isRecording
                                 ? 'bg-red-500 animate-pulse text-white scale-105'
                                 : 'bg-surface-container-high text-on-surface hover:text-primary hover:bg-primary/10 border border-white/5'
-                        }`}
+                            }`}
                     >
                         {isRecording ? <MdMicOff size={28} /> : <MdMic size={28} />}
                     </button>
@@ -196,7 +194,7 @@ const PhoenixChat = () => {
                             disabled={isRecording}
                             className="flex-1 bg-transparent text-on-surface placeholder:text-on-surface-variant p-4 resize-none outline-none text-sm md:text-base max-h-32"
                         />
-                        <button 
+                        <button
                             type="submit"
                             disabled={!inputText.trim() || isLoading}
                             className="px-4 text-primary disabled:text-on-surface-variant/50 hover:bg-primary/10 transition-colors flex items-center justify-center"
