@@ -116,7 +116,7 @@ export const sendChatMessage = (message, session_id, voice_output = false) => {
 };
 
 export const sendVoiceMessage = async (audioBlob, session_id) => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('accessToken');
     if (!token) throw new Error("No token found");
 
     const formData = new FormData();

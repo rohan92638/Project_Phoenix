@@ -13,15 +13,15 @@ const Hero = () => {
         />
       </div>
       <div className="container mx-auto px-8 relative z-10 flex flex-col items-start">
-        <span className="text-primary tracking-[0.3em] font-medium uppercase mb-4 block">Personal Growth Protocol</span>
+        <span className="text-primary tracking-[0.3em] font-medium uppercase mb-4 block">Smart AI Finance Tracker</span>
         <h1 className="font-headline text-7xl md:text-9xl font-black mb-2 text-on-surface phoenix-glow leading-[0.9]">
-          Project Phoenix
+          Smart AI Finance Tracker
         </h1>
         <h2 className="font-headline text-3xl md:text-5xl font-light text-secondary mb-8 leading-tight">
-          From Ashes to <span className="text-primary-container font-bold">Authority</span>
+          Track your money, understand your spending, and ask your AI financial assistant.
         </h2>
         <p className="max-w-xl text-on-surface-variant text-lg md:text-xl mb-12 font-light leading-relaxed">
-          A self-discipline and personal growth system designed to transform your chaos into structure, and your failures into strength.
+          A powerful financial management system designed to bring clarity to your expenses and help you save smarter.
         </p>
         <div className="flex flex-wrap gap-6">
           <Link to="/login" className="gold-gradient text-on-secondary-container px-10 py-5 rounded-full font-black text-lg uppercase tracking-widest shadow-[0_0_30px_rgba(255,219,60,0.3)] hover:scale-105 active:scale-95 transition-all inline-block flex items-center justify-center">

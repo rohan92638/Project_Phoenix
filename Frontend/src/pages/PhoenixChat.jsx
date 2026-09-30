@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { sendChatMessage, sendVoiceMessage } from '../services/api';
-import { MdMic, MdMicOff, MdSend, MdArrowBack, MdVolumeUp, MdVolumeOff } from "react-icons/md";
+import { MdMic, MdMicOff, MdSend, MdClose, MdVolumeUp, MdVolumeOff } from "react-icons/md";
 
-const PhoenixChat = () => {
+const PhoenixChat = ({ onClose }) => {
     const [messages, setMessages] = useState([
-        { role: 'ai', text: "Hello! I am Phoenix AI, your personal finance assistant. Ask me anything about your spending, budget, or ask for financial advice!" }
+        { role: 'ai', text: "Hello! I am your AI Finance Assistant. Ask me anything about your spending, budget, or ask for financial advice!" }
     ]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [botStatus, setBotStatus] = useState("Online"); // Online, Generating, Offline
+    const [providerInfo, setProviderInfo] = useState(''); // Fetched from backend
 
     // Voice & Audio state
     const [isRecording, setIsRecording] = useState(false);
@@ -36,11 +38,23 @@ const PhoenixChat = () => {
         setIsLoading(true);
 
         try {
+            setBotStatus("Generating...");
             const res = await sendChatMessage(userMsg, sessionId, voiceOutputEnabled);
+            
+            // Handle Ollama error messages to set Offline status
+            if (res.reply && (res.reply.includes("currently unavailable") || 
+                              res.reply.includes("not available") || 
+                              res.reply.includes("timed out"))) {
+                setBotStatus("Offline");
+            } else {
+                setBotStatus("Online");
+            }
+            
             handleAiResponse(res);
         } catch (error) {
             console.error("Chat error:", error);
             setMessages(prev => [...prev, { role: 'ai', text: "Sorry, I had trouble connecting to the server.", isError: true }]);
+            setBotStatus("Offline");
         } finally {
             setIsLoading(false);
         }
@@ -71,6 +85,7 @@ const PhoenixChat = () => {
                     setMessages(prev => [...prev, { role: 'user', text: "🎙️ [Voice Audio Sent]" }]);
 
                     try {
+                        setBotStatus("Generating...");
                         const res = await sendVoiceMessage(audioBlob, sessionId);
 
                         // Replace the placeholder with the actual transcript
@@ -80,10 +95,19 @@ const PhoenixChat = () => {
                             return newMsgs;
                         });
 
+                        if (res.reply && (res.reply.includes("currently unavailable") || 
+                                          res.reply.includes("not available") || 
+                                          res.reply.includes("timed out"))) {
+                            setBotStatus("Offline");
+                        } else {
+                            setBotStatus("Online");
+                        }
+                        
                         handleAiResponse(res);
                     } catch (error) {
                         console.error("Voice error:", error);
                         setMessages(prev => [...prev, { role: 'ai', text: "Sorry, I couldn't process your voice.", isError: true }]);
+                        setBotStatus("Offline");
                     } finally {
                         setIsLoading(false);
                     }
@@ -100,7 +124,13 @@ const PhoenixChat = () => {
 
     // ── HANDLE AI RESPONSE & AUDIO PLAYBACK ──────────────────────────
     const handleAiResponse = (res) => {
-        setMessages(prev => [...prev, { role: 'ai', text: res.reply }]);
+        if (res.reply) {
+            setMessages(prev => [...prev, { role: 'ai', text: res.reply }]);
+        }
+        
+        if (res.provider_info) {
+            setProviderInfo(res.provider_info);
+        }
 
         if (res.audio_base64 && voiceOutputEnabled) {
             try {
@@ -113,17 +143,25 @@ const PhoenixChat = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background font-body pb-20 md:pb-0 flex flex-col">
+        <div className="h-full bg-background font-body flex flex-col">
             {/* Header */}
             <header className="sticky top-0 z-50 bg-[#1d0c26]/80 backdrop-blur-xl border-b border-white/5 p-4 flex items-center justify-between shadow-md">
                 <div className="flex items-center gap-4">
-                    <Link to="/finance-tracker" className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-primary hover:text-background transition-colors">
-                        <MdArrowBack size={24} />
-                    </Link>
+                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-primary hover:text-background transition-colors">
+                        <MdClose size={24} />
+                    </button>
                     <div>
-                        <h1 className="text-xl font-headline font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Phoenix AI</h1>
-                        <p className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Online
+                        <h1 className="text-xl font-headline font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">AI Finance Assistant</h1>
+                        <p className={`text-xs font-bold flex items-center gap-1 ${
+                            botStatus === 'Online' ? 'text-emerald-400' : 
+                            botStatus === 'Offline' ? 'text-red-500' : 
+                            'text-yellow-400'
+                        }`}>
+                            <span className={`w-2 h-2 rounded-full ${
+                                botStatus === 'Online' ? 'bg-emerald-400 animate-pulse' : 
+                                botStatus === 'Offline' ? 'bg-red-500' : 
+                                'bg-yellow-400 animate-pulse'
+                            }`}></span> {botStatus} {providerInfo && <span className="ml-2 text-on-surface-variant/50 font-normal">| {providerInfo}</span>}
                         </p>
                     </div>
                 </div>

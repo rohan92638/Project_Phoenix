@@ -34,7 +34,7 @@ const Login = () => {
             localStorage.setItem("user",         JSON.stringify(data.user));
             localStorage.setItem("isLoggedIn",   "true");
 
-            window.location.href = '/dashboard';
+            window.location.href = '/finance-tracker';
 
         } catch (err) {
             setError(err.message || "Login failed. Please try again.");
@@ -50,7 +50,7 @@ const Login = () => {
             <header className="bg-transparent text-orange-500 dark:text-orange-400 font-headline tracking-tighter text-3xl uppercase w-full top-0 z-50 fixed">
                 <nav className="flex justify-between items-center w-full px-8 py-6 backdrop-blur-xl">
                     <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-red-600 bg-clip-text text-transparent">
-                        Project Phoenix
+                        Smart AI Finance Tracker
                     </Link>
                     <div className="flex items-center gap-8">
                         <Link className="text-purple-200/60 font-body text-sm tracking-widest uppercase hover:text-orange-400 hover:scale-105 transition-all duration-300" to="/">Support</Link>
@@ -73,10 +73,10 @@ const Login = () => {
                     {/* Hero Header inside Canvas */}
                     <div className="text-center mb-10">
                         <h1 className="font-headline text-5xl md:text-6xl font-bold tracking-tighter text-on-surface mb-4">
-                            Welcome Back, Phoenix
+                            Welcome Back
                         </h1>
                         <p className="text-on-surface-variant text-lg tracking-wide opacity-80">
-                            Rise again. Continue your journey.
+                            Login to your AI Finance Assistant.
                         </p>
                     </div>
 

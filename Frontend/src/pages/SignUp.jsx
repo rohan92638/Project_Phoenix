@@ -68,7 +68,7 @@ const SignUp = () => {
             {/* Navigation Shell */}
             <nav className="fixed top-0 w-full z-50 bg-[#1d0c26]/60 backdrop-blur-xl flex justify-between items-center px-10 py-6 max-w-screen-2xl mx-auto shadow-[0_10px_30px_rgba(255,87,26,0.1)]">
                 <Link to="/" className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#ffb59e] to-[#ff571a] font-headline tracking-tighter uppercase">
-                    PHOENIX
+                    SMART AI FINANCE TRACKER
                 </Link>
                 <div className="hidden md:flex gap-8">
                     <Link className="text-purple-200/70 hover:text-orange-200 transition-colors font-headline font-bold tracking-tighter uppercase" to="/">Ascension</Link>
@@ -85,7 +85,7 @@ const SignUp = () => {
                 {/* Header Section */}
                 <div className="text-center mb-10">
                     <h1 className="text-5xl md:text-6xl font-headline font-bold tracking-tighter text-on-surface mb-4">
-                        Create Your Phoenix Account
+                        Create Your Smart AI Finance Tracker Account
                     </h1>
                     <p className="text-lg text-on-surface-variant font-light tracking-wide italic">
                         Start your transformation journey today.
@@ -128,7 +128,7 @@ const SignUp = () => {
                             <div className="relative flex items-center bg-surface-container-highest rounded-full border border-outline-variant/30 input-focus-glow transition-all">
                                 <span className="material-symbols-outlined ml-4 text-outline">mail</span>
                                 <input className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 px-3 py-4 font-body focus:outline-none"
-                                  placeholder="aelius@phoenix.ascend"
+                                  placeholder="user@example.com"
                                   type="email"
                                   value={formData.email}
                                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}

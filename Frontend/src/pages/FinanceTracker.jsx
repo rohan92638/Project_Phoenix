@@ -4,6 +4,7 @@ import { FinanceContext } from '../context/FinanceContext';
 import { predictTransactionCategory } from '../services/api';
 import VoiceButton from '../components/voiceButton';
 import SpendingPersona from '../components/spendingPersona';
+import PhoenixChat from './PhoenixChat';
 
 const CATEGORY_COLORS = {
     // Expenses
@@ -101,6 +102,7 @@ const FinanceTracker = () => {
     const [transactionMode, setTransactionMode] = useState('expense'); // 'expense' | 'income' | 'savings'
     const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
     const [activityFilter, setActivityFilter] = useState('All'); // 'All', 'Expense', 'Income', 'Saving'
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     // form state
     const [formAmount, setFormAmount] = useState('');
@@ -234,10 +236,10 @@ const FinanceTracker = () => {
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     >menu</span>
                     <Link to="/" className="text-lg md:text-xl font-bold uppercase tracking-widest text-[#ffb59e] font-headline">
-                        PROJECT PHOENIX
+                        SMART AI FINANCE TRACKER
                     </Link>
                     <div className="hidden md:flex h-6 w-px bg-outline-variant/30" />
-                    <span className="hidden md:block text-[#fff9ef] font-headline text-sm tracking-widest opacity-80">Phoenix v1.0</span>
+                    <span className="hidden md:block text-[#fff9ef] font-headline text-sm tracking-widest opacity-80">v1.0</span>
                 </div>
                 <div className="flex items-center gap-4 md:gap-8">
                     <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-container-highest/40">
@@ -286,31 +288,14 @@ const FinanceTracker = () => {
                 <nav className="flex flex-col flex-1 overflow-y-auto w-full no-scrollbar">
                     <div className="mb-4 px-6 text-[10px] uppercase tracking-widest text-on-surface-variant/50 font-bold">Main Console</div>
 
-                    {[
-                        { to: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-                        { to: '/daily-tracker', icon: 'calendar_today', label: 'Daily Tracker' },
-                        { to: '/study-tracker', icon: 'menu_book', label: 'Study Tracker' },
-                    ].map(({ to, icon, label }) => (
-                        <Link key={to} className="flex items-center gap-4 text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium" to={to}>
-                            <span className="material-symbols-outlined">{icon}</span> {label}
-                        </Link>
-                    ))}
-
                     {/* Active: Finance Tracker */}
                     <Link className="flex items-center gap-4 text-[#fff9ef] bg-gradient-to-r from-[#ff571a]/20 to-transparent border-r-4 border-[#ff571a] py-3 px-6 transition-all duration-500 font-body text-sm font-medium" to="/finance-tracker">
                         <span className="material-symbols-outlined">payments</span> Finance Tracker
                     </Link>
 
-                    {[
-                        { icon: 'edit_note', label: 'Journal', to: '/journal' },
-                        { icon: 'dangerous', label: 'Failure Tracker', to: '/failure-tracker' },
-                        { icon: 'gavel', label: 'Rules & Discipline', to: '/rules-discipline' },
-                        { icon: 'analytics', label: 'Analysis', to: '/analysis' },
-                    ].map(({ icon, label, to }) => (
-                        <Link key={label} className="flex items-center gap-4 text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium" to={to}>
-                            <span className="material-symbols-outlined">{icon}</span> {label}
-                        </Link>
-                    ))}
+                    <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-4 text-[#ffb59e]/50 py-3 px-6 hover:bg-[#412d49]/50 hover:text-[#ffb59e] transition-all duration-500 font-body text-sm font-medium w-full text-left">
+                        <span className="material-symbols-outlined">smart_toy</span> AI Assistant
+                    </button>
 
                     <div className="mt-auto pt-8">
                         <div className="flex flex-col w-full">
@@ -908,13 +893,18 @@ const FinanceTracker = () => {
             </main>
 
             {/* ── AI CHATBOT FAB ──────────────────────────────────────────────────── */}
-            <Link
-                to="/finance-chat"
+            <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
                 className="fixed bottom-24 right-8 md:bottom-8 md:right-8 w-16 h-16 rounded-full bg-gradient-to-br from-[#ffb59e] to-[#ff571a] text-[#2a0a0a] flex items-center justify-center shadow-[0_10px_25px_rgba(255,87,26,0.5)] z-50 hover:scale-110 active:scale-95 transition-transform"
-                title="Talk to Phoenix AI"
+                title="Talk to AI Finance Assistant"
             >
                 <span className="material-symbols-outlined text-3xl font-bold">smart_toy</span>
-            </Link>
+            </button>
+
+            {/* ── AI CHATBOT PANEL ──────────────────────────────────────────────────── */}
+            <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-background z-[100] shadow-[-10px_0_30px_rgba(0,0,0,0.8)] border-l border-white/10 transition-transform duration-300 transform ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                <PhoenixChat onClose={() => setIsChatOpen(false)} />
+            </div>
 
             {/* ── MOBILE FAB ──────────────────────────────────────────────────── */}
             <button

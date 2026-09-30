@@ -117,7 +117,7 @@ const FinanceHistory = ({ type }) => {
                 </div>
                 <div className="flex items-center gap-4">
                     <Link to="/" className="text-lg md:text-xl font-bold uppercase tracking-widest text-[#ffb59e] font-headline">
-                        PROJECT PHOENIX
+                        SMART AI FINANCE TRACKER
                     </Link>
                 </div>
             </header>
