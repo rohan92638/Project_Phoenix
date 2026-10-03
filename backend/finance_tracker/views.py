@@ -254,7 +254,8 @@ def chat_api(request):
     POST body: { "message": "...", "session_id": "...", "voice_output": bool }
     Returns:   { "reply": "...", "audio_base64": "..." | null }
     """
-    from .chatboat.response_handler import handle_chat
+    from .ai_agent.agent.agent import run_agent
+    from .ai_agent.voice.voice_handler import text_to_speech_base64
 
     message      = request.data.get("message", "").strip()
     session_id   = request.data.get("session_id", "default")
@@ -264,7 +265,25 @@ def chat_api(request):
         return Response({"error": "Message is required"}, status=400)
 
     try:
-        result = handle_chat(request.user, message, session_id, voice_output=voice_output)
+        agent_result = run_agent(request.user.id, message)
+        reply = agent_result.get("reply", "")
+        
+        audio_base64 = None
+        if voice_output:
+            try: audio_base64 = text_to_speech_base64(reply)
+            except Exception: pass
+            
+        result = {
+            "reply": reply,
+            "audio_base64": audio_base64,
+            "tool_calls": agent_result.get("tool_calls", []),
+            "agent_iterations": agent_result.get("agent_iterations", 1)
+        }
+        
+        from decouple import config
+        model = config("OLLAMA_MODEL", default="qwen2.5:3b")
+        result["provider_info"] = f"Phoenix Agent · {model}"
+            
         return Response(result)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
@@ -289,8 +308,8 @@ def voice_chat_api(request):
       - session_id : session string
     Response: { "transcript": "...", "reply": "...", "audio_base64": "..." }
     """
-    from .chatboat.response_handler import handle_chat
-    from .chatboat.voice_handler    import transcribe_audio
+    from .ai_agent.agent.agent import run_agent
+    from .ai_agent.voice.voice_handler import transcribe_audio, text_to_speech_base64
 
     audio_file = request.FILES.get("audio")
     session_id = request.data.get("session_id", "default")
@@ -308,13 +327,18 @@ def voice_chat_api(request):
         if not transcript:
             return Response({"error": "Could not understand the audio. Please speak clearly."}, status=422)
 
-        # Step 3 + 4: Run chatbot + generate TTS output
-        result = handle_chat(request.user, transcript, session_id, voice_output=True)
+        # Step 3 + 4: Run agent + generate TTS output
+        agent_result = run_agent(request.user.id, transcript)
+        reply = agent_result.get("reply", "")
+        
+        audio_base64 = None
+        try: audio_base64 = text_to_speech_base64(reply)
+        except Exception: pass
 
         return Response({
             "transcript":   transcript,
-            "reply":        result["reply"],
-            "audio_base64": result["audio_base64"],
+            "reply":        reply,
+            "audio_base64": audio_base64,
         })
 
     except Exception as e:

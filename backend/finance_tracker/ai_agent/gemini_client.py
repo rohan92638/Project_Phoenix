@@ -15,10 +15,10 @@ from decouple import config
 import time
 
 # ── Load API key from .env ────────────────────────────────────────────────────
-GEMINI_API_KEY = config("GEMINI_API_KEY")
+GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
 
 # ── Initialize client (load once) ────────────────────────────────────────────
-_client = genai.Client(api_key=GEMINI_API_KEY)
+_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 MODEL_ID = "gemini-2.0-flash"   # fast + capable
 

@@ -1,6 +1,8 @@
 # intent_parser.py
 
 from .gemini_client import ask_gemini, _is_quota_blocked
+from .ollama_client import generate_ollama_response
+from decouple import config
 import json
 import re
 
@@ -8,6 +10,14 @@ import re
 # ─────────────────────────────────────────────────────────────────────────────
 # LOCAL FALLBACK: keyword-based intent detection (no API call needed)
 # ─────────────────────────────────────────────────────────────────────────────
+
+# HIGHEST PRIORITY - Greetings
+_GREETING_INTENTS = {
+    "greeting": [
+        "hi", "hello", "hey", "hey there", "hii", "good morning", 
+        "good afternoon", "good evening", "how are you", "what's up", "yo"
+    ]
+}
 
 # HIGH PRIORITY — checked FIRST (override data-fetch intents)
 _HIGH_PRIORITY_INTENTS = {
@@ -71,7 +81,13 @@ def _local_detect_intent(message: str) -> dict:
     """
     msg = message.lower().strip()
 
-    detected_intent = "general_chat"
+    detected_intent = "unknown"
+
+    # ── PASS 0: Check GREETING intents first ─────────────────────────────
+    # Exact match or starts with for short greetings
+    for kw in _GREETING_INTENTS["greeting"]:
+        if msg == kw or msg.startswith(kw + " "):
+            return {"intent": "greeting", "entities": {}}
 
     # ── PASS 1: Check HIGH-priority intents first ─────────────────────────────
     for intent, keywords in _HIGH_PRIORITY_INTENTS.items():
@@ -79,17 +95,17 @@ def _local_detect_intent(message: str) -> dict:
             if kw in msg:
                 detected_intent = intent
                 break
-        if detected_intent != "general_chat":
+        if detected_intent != "unknown":
             break
 
     # ── PASS 2: If no high-priority match, check LOW-priority ─────────────────
-    if detected_intent == "general_chat":
+    if detected_intent == "unknown":
         for intent, keywords in _LOW_PRIORITY_INTENTS.items():
             for kw in keywords:
                 if kw in msg:
                     detected_intent = intent
                     break
-            if detected_intent != "general_chat":
+            if detected_intent != "unknown":
                 break
 
     # ── PASS 3: If both income AND expense mentioned → financial_summary ──────
@@ -167,8 +183,10 @@ def detect_intent(message):
     Returns structured dict: {intent, entities}
     """
 
+    AI_PROVIDER = config("AI_PROVIDER", default="ollama")
+
     # ── FAST PATH: Use local parser if Gemini is down ─────────────────────────
-    if _is_quota_blocked():
+    if AI_PROVIDER == "gemini" and _is_quota_blocked():
         print("[IntentParser] Quota exhausted — using local keyword fallback")
         return _local_detect_intent(message)
 
@@ -191,9 +209,13 @@ Supported intents:
 - budget_planning
 - financial_education
 - general_chat
+- greeting
+- unknown (if totally unrelated to finance and not a greeting)
 
 IMPORTANT RULES:
 - If user asks about BOTH income AND expenses → return "financial_summary"
+- If the user says hi, hello, hey, etc., return "greeting"
+- If the user asks for a joke, weather, or totally non-finance things, return "unknown"
 - Always return ONLY JSON
 - Do NOT explain anything
 - Do NOT add extra text
@@ -211,12 +233,14 @@ Example:
 """
 
     try:
-        # 🔹 Step 1: Call Gemini
-        response = ask_gemini(prompt)
-
-        # 🔹 Check if Gemini returned a quota error message
-        if "quota" in response.lower() and "exhausted" in response.lower():
-            return _local_detect_intent(message)
+        # 🔹 Step 1: Call AI Provider
+        if AI_PROVIDER == "gemini":
+            response = ask_gemini(prompt)
+            # 🔹 Check if Gemini returned a quota error message
+            if "quota" in response.lower() and "exhausted" in response.lower():
+                return _local_detect_intent(message)
+        else:
+            response = generate_ollama_response(prompt)
 
         # 🔹 Step 2: Extract JSON safely (handles extra text)
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
@@ -230,7 +254,7 @@ Example:
         data = json.loads(json_str)
 
         # 🔹 Step 4: Normalize output
-        intent = data.get("intent", "general_chat").lower()
+        intent = data.get("intent", "unknown").lower()
         entities = data.get("entities", {})
 
         return {

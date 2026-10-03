@@ -13,10 +13,14 @@ import numpy as np
 import os
 import json
 from django.conf import settings
-from .gemini_client import get_embedding
+from decouple import config
 
-# Gemini embedding dimension
-EMBEDDING_DIM = 3072
+AI_PROVIDER = config("AI_PROVIDER", default="ollama")
+
+if AI_PROVIDER == "gemini":
+    from finance_tracker.ai_agent.gemini_client import get_embedding
+else:
+    from finance_tracker.ai_agent.providers.ollama_client import get_ollama_embedding as get_embedding
 
 BASE_DIR = settings.BASE_DIR
 INDEX_FILE = os.path.join(BASE_DIR, "faiss_index.bin")
@@ -29,21 +33,30 @@ _metadata = []
 # ─────────────────────────────────────────────────────────
 # INIT DB
 # ─────────────────────────────────────────────────────────
-def _init_db():
+def _init_db(dim=None):
     global _index, _metadata
 
     if _index is None:
         if os.path.exists(INDEX_FILE):
             _index = faiss.read_index(INDEX_FILE)
-
-            if os.path.exists(META_FILE):
-                with open(META_FILE, "r") as f:
-                    _metadata = json.load(f)
-            else:
+            
+            # Dimension mismatch, reset DB
+            if dim and _index.d != dim:
+                print(f"[FAISS] Dimension mismatch! Expected {dim}, found {_index.d}. Recreating FAISS index...")
+                _index = faiss.IndexFlatL2(dim)
                 _metadata = []
+                _save_db()
+            else:
+                if os.path.exists(META_FILE):
+                    with open(META_FILE, "r") as f:
+                        _metadata = json.load(f)
+                else:
+                    _metadata = []
         else:
+            if dim is None:
+                dim = 3072 # fallback
             # L2 distance index
-            _index = faiss.IndexFlatL2(EMBEDDING_DIM)
+            _index = faiss.IndexFlatL2(dim)
             _metadata = []
 
 
@@ -65,13 +78,14 @@ def add_to_vector_db(user_id, text, embedding=None):
     Store conversation into vector DB
     """
 
-    _init_db()
-
     if embedding is None:
         embedding = get_embedding(text)
 
     if embedding is None:
         return  # fail silently
+
+    dim = len(embedding)
+    _init_db(dim)
 
     vec = np.array([embedding], dtype=np.float32)
 
@@ -93,15 +107,16 @@ def search_vector_db(user_id, text=None, embedding=None, k=3):
     Retrieve similar past conversations
     """
 
-    _init_db()
-
-    if _index.ntotal == 0:
-        return []
-
     if embedding is None and text:
         embedding = get_embedding(text)
 
     if embedding is None:
+        return []
+
+    dim = len(embedding)
+    _init_db(dim)
+
+    if _index.ntotal == 0:
         return []
 
     vec = np.array([embedding], dtype=np.float32)

@@ -10,7 +10,7 @@ Injects REAL financial data so the AI cannot hallucinate numbers.
 # SYSTEM PERSONA — controls AI behaviour
 # ─────────────────────────────────────────────────────────────────────────────
 
-SYSTEM_PERSONA = """You are Phoenix AI, a smart personal finance assistant built into the Phoenix Finance Tracker app.
+SYSTEM_PERSONA = """You are an AI Finance Assistant, a smart personal finance assistant built into the Smart AI Finance Tracker app.
 
 YOUR RULES (follow strictly):
 1. ONLY use the numbers from [USER FINANCIAL DATA] below. NEVER invent figures.

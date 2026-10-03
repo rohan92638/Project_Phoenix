@@ -23,6 +23,10 @@ from .data_fetcher   import (
 )
 from .prompt_builder import build_prompt
 from .gemini_client  import ask_gemini, _is_quota_blocked
+from .ollama_client  import generate_ollama_response
+from decouple import config
+
+AI_PROVIDER = config("AI_PROVIDER", default="ollama")
 from .memory_manager import get_history, add_exchange
 from .vector_store import add_to_vector_db, get_memory_context
 from .voice_handler  import text_to_speech_base64
@@ -303,8 +307,27 @@ def handle_chat(user, user_message: str, session_id: str = "default",
 
     # ── 2. Detect intent + entities ───────────────────────────────────────────
     parsed   = detect_intent(user_message)
-    intent   = parsed.get("intent", "general_chat")
+    intent   = parsed.get("intent", "unknown")
     entities = parsed.get("entities", {})
+
+    # ── 2.5 FAST PATH: Greeting and Unknown ───────────────────────────────────
+    if intent == "greeting":
+        reply = "Hey! I'm your AI Finance Assistant. You can ask me about your expenses, income, savings, budget, or spending patterns."
+        add_exchange(session_id, user_message, reply)
+        audio_base64 = None
+        if voice_output:
+            try: audio_base64 = text_to_speech_base64(reply)
+            except Exception: pass
+        return {"reply": reply, "audio_base64": audio_base64}
+
+    if intent == "unknown":
+        reply = "I'm focused on helping with your finances. Try asking about expenses, income, savings, budgets, or spending."
+        add_exchange(session_id, user_message, reply)
+        audio_base64 = None
+        if voice_output:
+            try: audio_base64 = text_to_speech_base64(reply)
+            except Exception: pass
+        return {"reply": reply, "audio_base64": audio_base64}
 
     # ── 3. Resolve date range ─────────────────────────────────────────────────
     date_str = (
@@ -350,34 +373,31 @@ def handle_chat(user, user_message: str, session_id: str = "default",
     else:
         data = get_overall_summary(user)
 
-    # ── 5. Check if Gemini is available ───────────────────────────────────────
-    quota_blocked = _is_quota_blocked()
+    # ── 5. Check AI Provider and Generate Response ────────────────────────────
+    
+    # Retrieve relevant past memory (FAISS)
+    memory_context = get_memory_context(user.id, user_message)
 
-    if not quota_blocked:
-        # ── 5a. FULL AI PATH — Gemini is available ────────────────────────────
+    # Build the grounded prompt
+    prompt = build_prompt(user_message, intent, entities, data, history, memory_context)
 
-        # Retrieve relevant past memory (FAISS)
-        memory_context = get_memory_context(user.id, user_message)
-
-        # Build the grounded prompt
-        prompt = build_prompt(user_message, intent, entities, data, history, memory_context)
-
-        # Call Gemini
-        reply = ask_gemini(prompt, history=history)
-
-        # Check if Gemini just NOW returned a quota error
-        if "quota" in reply.lower() and ("exhausted" in reply.lower() or "reached" in reply.lower()):
-            # Gemini just died — use local fallback for THIS request
+    if AI_PROVIDER == "gemini":
+        quota_blocked = _is_quota_blocked()
+        if not quota_blocked:
+            reply = ask_gemini(prompt, history=history)
+            if "quota" in reply.lower() and ("exhausted" in reply.lower() or "reached" in reply.lower()):
+                reply = _format_local_reply(intent, data, entities["date_range"], user_message)
+        else:
             reply = _format_local_reply(intent, data, entities["date_range"], user_message)
     else:
-        # ── 5b. LOCAL FALLBACK — format data directly (no API calls) ──────────
-        reply = _format_local_reply(intent, data, entities["date_range"], user_message)
+        # FULL AI PATH — Ollama is available
+        reply = generate_ollama_response(prompt, history=history)
 
     # ── 6. Store exchange in memory ───────────────────────────────────────────
     add_exchange(session_id, user_message, reply)
 
     # ── 7. Store to Vector DB for permanent semantic search ───────────────────
-    if not quota_blocked:
+    if AI_PROVIDER != "gemini" or not _is_quota_blocked():
         exchange_text = f"User asked: '{user_message}' | AI replied: '{reply}'"
         try:
             add_to_vector_db(user.id, exchange_text)
